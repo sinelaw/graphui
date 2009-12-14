@@ -6,7 +6,7 @@ import qualified Data.Map as Map
 import qualified AnnotatedGraph
 
 import qualified Graphics.DrawingCombinators as Draw
-import Math.Bezier(bezierN)
+import Math.Bezier(bezierNSamples)
 
 renderAG :: AnnotatedGraph.AnnotatedGraph -> Draw.Draw AnnotatedGraph.Id
 renderAG (AnnotatedGraph.AG g vrNodes vrEdges) = mconcat (renderedNodes ++ renderedEdges) where 
@@ -20,6 +20,6 @@ renderNode jd vrdNode = Draw.empty
 
 renderEdge :: Int -> AnnotatedGraph.VRDEdge -> Draw.Draw AnnotatedGraph.Id
 renderEdge jd vrdEdge = mconcat (map mkLine (zip ps (tail ps))) where
-    ps = AnnotatedGraph.pointsE vrdEdge
+    ps = bezierNSamples (AnnotatedGraph.bezierSamplesE vrdEdge) (AnnotatedGraph.pointsE vrdEdge)
     mkLine = (fmap mkId) . (uncurry Draw.line)
     mkId = const (AnnotatedGraph.Id [(AnnotatedGraph.Edge, jd)])

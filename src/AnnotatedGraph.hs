@@ -22,7 +22,7 @@ data Shape = Rectangle | Ellipse
 data VRDNode = VRDNode { shapeN :: Shape, positionN, scaleN :: Draw.Vec2, colorN :: Draw.Color }
 type VRNode = Map.Map Int VRDNode
 
-data VRDEdge = VRDEdge { widthE :: Double, pointsE :: [Draw.Vec2], colorE :: Draw.Color } 
+data VRDEdge = VRDEdge { widthE :: Double, pointsE :: [Draw.Vec2], colorE :: Draw.Color , bezierSamplesE :: Int } 
 type VREdge = Map.Map Int VRDEdge
 
 data AnnotatedGraph = AG { graph :: GraphStructure, vrNodes :: VRNode, vrEdges :: VREdge }
