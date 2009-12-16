@@ -1,15 +1,17 @@
 {-# LANGUAGE GADTs, KindSignatures #-}
 module AnnotatedGraph where
 
-import qualified Graphics.DrawingCombinators as Draw
 import qualified Data.Graph.Inductive as Graph
 import qualified Data.Graph.Inductive.PatriciaTree as PTGraph
 
 import qualified Data.IntMap as IntMap
 import Data.Monoid
 import qualified Data.Set as Set
+import qualified FRP.Yampa.Vector2 as Vector2
 
 type GraphStructure a b = PTGraph.Gr a b
+
+type Color = (Double, Double, Double, Double)
 
 newGrNode :: PTGraph.Gr a b -> Graph.Node
 newGrNode gr = head (Graph.newNodes 1 gr)
@@ -34,14 +36,22 @@ instance Monoid Id where
 
 data Shape = Rectangle | Ellipse
 
-data VRDNode = VRDNEmpty | VRDNode { shapeN :: Shape, positionN, scaleN :: Draw.Vec2, colorN :: Draw.Color }
+data VRDNode = VRDNEmpty | VRDNode { shapeN :: Shape, 
+                                     positionN :: Vector2.Vector2 Double, 
+                                     scaleN :: Vector2.Vector2 Double, 
+                                     colorN :: Color }
 type VRNode = IntMap.IntMap VRDNode
 
-data VRDEdge = VRDEEmpty | VRDEdge { widthE :: Double, pointsE :: [Draw.Vec2], colorE :: Draw.Color , bezierSamplesE :: Int } 
+data VRDEdge = VRDEEmpty | VRDEdge { widthE :: Double, 
+                                     pointsE :: [Vector2.Vector2 Double], 
+                                     colorE :: Color , 
+                                     bezierSamplesE :: Int } 
 type VREdge = IntMap.IntMap VRDEdge
 
 data AnnotatedGraph a b = AG { graph :: GraphStructure a b, vrNodes :: VRNode, vrEdges :: VREdge }
 
+empty :: AnnotatedGraph a b
+empty = AG { graph = Graph.empty, vrNodes = IntMap.empty, vrEdges = IntMap.empty }
 
 newLNode :: a -> AnnotatedGraph a b -> Graph.LNode a
 newLNode label ag = newGrLNode label (graph ag)
