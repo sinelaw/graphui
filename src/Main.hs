@@ -1,63 +1,64 @@
-{-# LANGUAGE Arrows #-}
+import qualified Graphics.DrawingCombinators as Draw
+import qualified Graphics.UI.SDL as SDL
+import Data.Monoid
 
-module Main where
-
-import qualified AnnotatedGraph as AG
+import qualified AnnotatedGraph
 import qualified Render
 
-import qualified FRP.Yampa as Yampa
-import qualified FRP.Yampa.Vector2 as Vector2
-import qualified Control.Arrow as Arrow
-import WXFruit
-import qualified Graphics.UI.WX as WX
+resX = 640 
+resY = 480 
 
--- Elements of the game.
-
-bg :: WXPicture
-bg = wxWithColor WX.black wxfill
-
-gameBox :: (Num t) => t -> t -> WX.Size2D t
-gameBox w h = WX.sz w h
+initScreen :: IO ()
+initScreen = do
+    SDL.init [SDL.InitTimer, SDL.InitVideo]
+    -- resolution & color depth
+    SDL.setVideoMode resX resY 32 [SDL.OpenGL]
+    return ()
 
 
-guiRender :: (RealFloat t) => WXBox (AG.AnnotatedGraph a b, Vector2.Vector2 t) WXPicture
-guiRender = proc (ag, mpos) -> do
-              let gamePic = Render.overlay [Render.renderAG ag, Render.drawCircle 10 mpos, bg]
-              Yampa.returnA -< gamePic
+box :: Draw.Draw ()
+box = Draw.scale 0.3 0.3 
+        $ Draw.color (1,0,0,1) 
+        $ Draw.convexPoly
+            [(1,1),(1,-1),(-1,-1),(-1,1)]
 
--- The top-level GUI: puts it all together.
-guiMain :: WXGUI () ()
-guiMain = wxHBox $ proc _ -> do
-            mpos <- wxmouse -< ()
-            rec newAg <- eventToAG -< (Yampa.NoEvent, ag)
-                ag <- graphDelay -< newAg
-                gamePic <- guiRender -< (newAg, Vector2.vector2 (fromIntegral . WX.pointX $ mpos) 
-                                                                (fromIntegral . WX.pointY $ mpos))
-                
-            _ <- wxpicture (psize (gameBox 350 350)) -< ppic gamePic
-            Yampa.returnA -< ()
-    where graphDelay = (wxBox . wxSF) $ Yampa.iPre AG.empty
+drawing :: Draw.Draw [Char]
+drawing = fmap (const "A") (Draw.color (0,0,1,0.5) box)
+          `mappend`
+          fmap (const "B") (Draw.translate (-0.1,0.2) box)
 
 main :: IO ()
-main = startGUI "Graphui" guiMain
+main = do
+    initScreen
+    Draw.draw drawing
+    SDL.glSwapBuffers
+    waitClicks
+    SDL.quit
+    return ()
 
+    where
+    waitClicks = do
+        ev <- SDL.waitEvent
+        case ev of
+             SDL.Quit -> return ()
+             SDL.MouseMotion x y _ _ -> do
+                 let x' = 2*(fromIntegral x / fromIntegral resX) - 1
+                 let y' = 1 - 2*(fromIntegral y / fromIntegral resY)
+                 let tdraw = (Draw.translate (x',y') drawing)
+                 --Draw.draw tdraw
+                 --SDL.glSwapBuffers
+                 waitClicks
+             SDL.MouseButtonDown x y _ -> do
+                 let x' = 2*(fromIntegral x / fromIntegral resX) - 1
+                 let y' = 1 - 2*(fromIntegral y / fromIntegral resY)
+                 let tdraw = (Draw.translate (x',y') drawing)
+                 hit <- Draw.click (x',y') tdraw
+                 case hit of
+                      Nothing -> waitClicks
+                      Just xs -> putStrLn xs >> waitClicks
+             _ -> waitClicks
 
-data AGEvent a b = AddNewNode a | RemoveNode Int | AddEdge b Int Int 
-
-
--- sdlToAGEvents :: Yampa.SF (Yampa.Event SDL.Event) (Yampa.Event (AGEvent String String))
--- sdlToAGEvents = proc sdlEvent -> do
---                        let anGraphEvent = case (inEvent sdlEvent) of
---                                       SDL.KeyDown ks -> case (SDL.symKey ks) of
---                                                           SDL.SDLK_a -> Yampa.Event (AddNewNode "new")
---                                                           _          -> Yampa.NoEvent
---                                       _ -> Yampa.NoEvent
---                        Yampa.returnA -< anGraphEvent
-                                
-
-eventToAG :: WXBox (Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) (AG.AnnotatedGraph a b)
-eventToAG = proc (anGraphEvent, ag) -> do 
-                   let resAG = case anGraphEvent of
-                                 Yampa.Event (AddNewNode x) -> AG.insNewLNode x ag
-                                 _ -> ag
-                   Yampa.returnA -< resAG
+untilM :: (Monad m) => (a -> Bool) -> m a -> m a
+untilM f m = do
+    x <- m
+    if f x then return x else untilM f m 
