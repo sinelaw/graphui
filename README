@@ -1,0 +1,11 @@
+Graphui
+--------
+An attempt to implement Graphui using some sort of FRP framework.
+
+
+Problems / TODO:
+================
+
+* wxFruit isn't good because it only places handlers on specific event types in the widgets it supports.
+* go back to SDL? better at event handling, but I will need to figure out how to implement the "reactimate" or whatever function to feed these events into Yampa.
+

@@ -15,7 +15,7 @@ Build-Depends: base, Yampa >= 0.9.2, graphics-drawingcombinators >= 0.43, contai
 
 Library
   hs-source-dirs:  src
-  build-Depends: base
+  build-Depends: base, Yampa >= 0.9.2
   ghc-options : -O2 -Wall 
   exposed-modules: Math.Bezier
 
