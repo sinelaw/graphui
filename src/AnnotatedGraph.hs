@@ -7,7 +7,7 @@ import qualified Data.Graph.Inductive.PatriciaTree as PTGraph
 import qualified Data.IntMap as IntMap
 import Data.Monoid
 import qualified Data.Set as Set
-import qualified FRP.Yampa.Vector2 as Vector2
+import qualified Math.Vector2 as Vector2
 
 type GraphStructure a b = PTGraph.Gr a b
 

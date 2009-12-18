@@ -58,7 +58,3 @@ main = do
                       Just xs -> putStrLn xs >> waitClicks
              _ -> waitClicks
 
-untilM :: (Monad m) => (a -> Bool) -> m a -> m a
-untilM f m = do
-    x <- m
-    if f x then return x else untilM f m 
