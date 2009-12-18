@@ -2,8 +2,10 @@ import qualified Graphics.DrawingCombinators as Draw
 import qualified Graphics.UI.SDL as SDL
 import Data.Monoid
 
-import qualified AnnotatedGraph
+import qualified AnnotatedGraph as AG
 import qualified Render
+
+import qualified FRP.Yampa as Yampa
 
 resX = 640 
 resY = 480 
@@ -26,6 +28,8 @@ drawing :: Draw.Draw [Char]
 drawing = fmap (const "A") (Draw.color (0,0,1,0.5) box)
           `mappend`
           fmap (const "B") (Draw.translate (-0.1,0.2) box)
+
+
 
 main :: IO ()
 main = do
@@ -58,3 +62,22 @@ main = do
                       Just xs -> putStrLn xs >> waitClicks
              _ -> waitClicks
 
+
+data AGEvent a b = AddNewNode a | RemoveNode Int | AddEdge b Int Int 
+
+sdlToAGEvents :: Yampa.SF (Yampa.Event SDL.Event) (Yampa.Event (AGEvent String String))
+sdlToAGEvents = proc sdlEvent -> do
+                       let anGraphEvent = case (sdlEvent) of
+                                      Yampa.Event (SDL.KeyDown ks) -> case (SDL.symKey ks) of
+                                                          SDL.SDLK_a -> Yampa.Event (AddNewNode "new")
+                                                          _          -> Yampa.NoEvent
+                                      _ -> Yampa.NoEvent
+                       Yampa.returnA -< anGraphEvent
+
+
+eventToAG :: Yampa.SF (Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) (AG.AnnotatedGraph a b)
+eventToAG = proc (anGraphEvent, ag) -> do 
+                   let resAG = case anGraphEvent of
+                                 Yampa.Event (AddNewNode x) -> AG.insNewLNode x ag
+                                 _ -> ag
+                   Yampa.returnA -< resAG
