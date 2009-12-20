@@ -24,7 +24,7 @@ newGrLNode label gr = (newGrNode gr, label)
 data ElementType = Node | Edge
      deriving (Ord, Eq, Show)
 
-data Id = Id (Set.Set (ElementType, Int))
+newtype Id = Id (Set.Set (ElementType, Int))
      deriving (Show)
 
 newId :: ElementType -> Int -> Id

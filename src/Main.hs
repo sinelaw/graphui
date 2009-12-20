@@ -23,18 +23,16 @@ initScreen = do
 sense :: Bool -> IO (Yampa.DTime, Maybe SDL.Event)
 sense canBlock = do
     ev <- SDL.waitEvent
-    return (0, Just ev)
+    return (0.1, Just ev)
     
 actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Id, AGEvent a b) -> IO Bool
 actuate mayHaveChanged (needQuit, d, agEvent) = do
   putStrLn (show agEvent)
-  putStrLn ("need to quit = " ++ show needQuit)
   if needQuit 
     then return True
     else if mayHaveChanged 
            then (Draw.draw d >> SDL.glSwapBuffers >> return False) 
            else return False
-  return False
   
 initial :: IO SDL.Event
 initial = do
@@ -56,6 +54,7 @@ processor = proc sdlEvent -> do
 main :: IO ()
 main = do
   Yampa.reactimate initial sense actuate processor
+  putStrLn "Quitting"
   SDL.quit
   return ()
 
