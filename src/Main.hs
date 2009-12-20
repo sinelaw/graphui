@@ -18,17 +18,6 @@ initScreen = do
     return ()
 
 
-box :: Draw.Draw ()
-box = Draw.scale 0.3 0.3 
-        $ Draw.color (1,0,0,1) 
-        $ Draw.convexPoly
-            [(1,1),(1,-1),(-1,-1),(-1,1)]
-
-draw1 :: Draw.Draw [Char]
-draw1 = fmap (const "A") (Draw.color (0,0,1,0.5) box)
-
-draw2 :: Draw.Draw [Char]
-draw2 = fmap (const "B") (Draw.translate (-0.1,0.2) box)
 
 
 sense :: Bool -> IO (Yampa.DTime, Maybe SDL.Event)
@@ -36,9 +25,15 @@ sense canBlock = do
     ev <- SDL.waitEvent
     return (0, Just ev)
     
-actuate :: Bool -> Draw.Draw AG.Id -> IO Bool
-actuate mayHaveChanged d = do           
-  if mayHaveChanged then (Draw.draw d >> SDL.glSwapBuffers >> return False) else return False
+actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Id, AGEvent a b) -> IO Bool
+actuate mayHaveChanged (needQuit, d, agEvent) = do
+  putStrLn (show agEvent)
+  putStrLn ("need to quit = " ++ show needQuit)
+  if needQuit 
+    then return True
+    else if mayHaveChanged 
+           then (Draw.draw d >> SDL.glSwapBuffers >> return False) 
+           else return False
   return False
   
 initial :: IO SDL.Event
@@ -47,12 +42,16 @@ initial = do
   ev <- SDL.waitEvent
   return ev
 
-processor :: Yampa.SF SDL.Event (Draw.Draw AG.Id)
+processor :: Yampa.SF SDL.Event (Bool, Draw.Draw AG.Id, AGEvent String String)
 processor = proc sdlEvent -> do
               agEvent <- sdlToAGEvents -< sdlEvent
-              rec ag <- eventToAG -< (agEvent, ag)
+              rec ag <- eventToAG -< (agEvent, preAg)
+                  -- todo use accumHold or variants?
+                  preAg <- agIPre -< ag
               d <- procRenderAG -< ag
-              Yampa.returnA -< d
+              needQuit <- guiEventHandler -< agEvent
+              Yampa.returnA -< (needQuit, d, agEvent)
+            where agIPre = Yampa.iPre AG.empty
 
 main :: IO ()
 main = do
@@ -61,22 +60,24 @@ main = do
   return ()
 
 
-data AGEvent a b = AddNewNode a | RemoveNode Int | AddEdge b Int Int 
+data (Show a, Show b, Eq a, Eq b) => AGEvent a b = AddNewNode a | RemoveNode Int | AddEdge b Int Int | Quit | NoEvent
+                   deriving (Eq, Show)
 
-sdlToAGEvents :: Yampa.SF (SDL.Event) (Yampa.Event (AGEvent String String))
+sdlToAGEvents :: Yampa.SF (SDL.Event) (AGEvent String String)
 sdlToAGEvents = proc sdlEvent -> do
                   let anGraphEvent = case (sdlEvent) of
                                        SDL.KeyDown ks -> case (SDL.symKey ks) of
-                                                           SDL.SDLK_a -> Yampa.Event (AddNewNode "new")
-                                                           _          -> Yampa.NoEvent
-                                       _ -> Yampa.NoEvent
+                                                           SDL.SDLK_a -> AddNewNode "new"
+                                                           _          -> NoEvent
+                                       SDL.Quit -> Quit
+                                       _ -> NoEvent
                   Yampa.returnA -< anGraphEvent
 
 
-eventToAG :: Yampa.SF (Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) (AG.AnnotatedGraph a b)
+eventToAG :: (Show a, Eq a, Show b, Eq b) => Yampa.SF (AGEvent a b, AG.AnnotatedGraph a b) (AG.AnnotatedGraph a b)
 eventToAG = proc (anGraphEvent, ag) -> do 
                    let resAG = case anGraphEvent of
-                                 Yampa.Event (AddNewNode x) -> AG.insNewLNode x ag
+                                 AddNewNode x -> AG.insNewLNode x ag
                                  _ -> ag
                    Yampa.returnA -< resAG
 
@@ -84,3 +85,7 @@ procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b) (Draw.Draw AG.Id)
 procRenderAG = proc ag -> do
              Yampa.returnA -< (Render.renderAG ag)
 
+
+guiEventHandler :: (Show a, Eq a, Show b, Eq b) => Yampa.SF (AGEvent a b) Bool
+guiEventHandler = proc agEvent -> do
+                    Yampa.returnA -< (agEvent == Quit)
