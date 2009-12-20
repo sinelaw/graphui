@@ -42,11 +42,20 @@ actuate mayHaveChanged d = do
   return False
   
 initial :: IO SDL.Event
-initial = SDL.waitEvent
+initial = do
+  initScreen
+  ev <- SDL.waitEvent
+  return ev
+
+processor :: Yampa.SF SDL.Event (Draw.Draw AG.Id)
+processor = proc sdlEvent -> do
+              agEvent <- sdlToAGEvents -< sdlEvent
+              rec ag <- eventToAG -< (agEvent, ag)
+              d <- procRenderAG -< ag
+              Yampa.returnA -< d
 
 main :: IO ()
 main = do
-  initScreen
   Yampa.reactimate initial sense actuate processor
   SDL.quit
   return ()
@@ -75,10 +84,3 @@ procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b) (Draw.Draw AG.Id)
 procRenderAG = proc ag -> do
              Yampa.returnA -< (Render.renderAG ag)
 
-
-processor :: Yampa.SF SDL.Event (Draw.Draw AG.Id)
-processor = proc sdlEvent -> do
-              agEvent <- sdlToAGEvents -< sdlEvent
-              rec ag <- eventToAG -< (agEvent, ag)
-              d <- procRenderAG -< ag
-              Yampa.returnA -< d
