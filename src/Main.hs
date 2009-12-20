@@ -1,13 +1,15 @@
 import qualified Graphics.DrawingCombinators as Draw
 import qualified Graphics.UI.SDL as SDL
-import Data.Monoid
 
 import qualified AnnotatedGraph as AG
 import qualified Render
 
 import qualified FRP.Yampa as Yampa
+import Control.Monad(when)
 
+resX :: Int
 resX = 640 
+resY :: Int
 resY = 480 
 
 initScreen :: IO ()
@@ -23,16 +25,15 @@ initScreen = do
 sense :: Bool -> IO (Yampa.DTime, Maybe SDL.Event)
 sense canBlock = do
     ev <- SDL.waitEvent
-    return (0.1, Just ev)
+    return (0, Just ev)
     
 actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Id, AGEvent a b) -> IO Bool
 actuate mayHaveChanged (needQuit, d, agEvent) = do
-  putStrLn (show agEvent)
-  if needQuit 
-    then return True
-    else if mayHaveChanged 
-           then (Draw.draw d >> SDL.glSwapBuffers >> return False) 
-           else return False
+    when (agEvent /= NoEvent) (print agEvent)
+    when (not needQuit && mayHaveChanged) redraw
+    return needQuit
+  where
+   redraw = Draw.draw d >> SDL.glSwapBuffers
   
 initial :: IO SDL.Event
 initial = do
