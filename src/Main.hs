@@ -6,7 +6,9 @@ import qualified AnnotatedGraph as AG
 import qualified Render
 import qualified Layout
 
-import qualified System.IO.Unsafe
+import qualified System.IO.Unsafe -- to hide the dot-layout stuff
+
+import qualified Data.Set as Set
 
 import qualified FRP.Yampa as Yampa
 import Control.Monad(when)
@@ -30,7 +32,7 @@ sense canBlock = do
     ev <- SDL.waitEvent
     return (0, Just ev)
     
-actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Id, Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) -> IO Bool
+actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Ids, Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) -> IO Bool
 actuate mayHaveChanged (needQuit, d, agEvent, ag) = do
 --    print ag
 --    when (agEvent /= Yampa.NoEvent) (print . Yampa.fromEvent $ agEvent)
@@ -48,7 +50,7 @@ initial = do
   return ev
 
 processor :: Yampa.SF SDL.Event (Bool,  -- shall we quit?
-                                 Draw.Draw AG.Id, -- The updated rendered screen
+                                 Draw.Draw AG.Ids, -- The updated rendered screen
                                  -- Debugging stuff:
                                  Yampa.Event (AGEvent String String),  -- The event processed
                                  AG.AnnotatedGraph String String -- the resulting annotated graph
@@ -72,20 +74,20 @@ main = do
   return ()
 
 
-data AGEvent a b = AddNewNode a | RemoveNode Int | AddEdge b Int Int | Quit | AGElementSelected AG.Id | MouseMotion Int Int
+data AGEvent a b = AddNewNode a | RemoveNode Int | AddEdge b Int Int | Quit | AGElementSelected AG.Ids | MouseMotion Int Int
                    deriving (Eq, Show)
 
 convCoords :: Double -> Double -> (Double, Double)
 convCoords x y = (2*(x / fromIntegral resX) - 1, 1 - 2*(y / fromIntegral resY))
 
-locateClick :: (Integral a) => a -> a -> Draw.Draw AG.Id -> Maybe AG.Id
+locateClick :: (Integral a) => a -> a -> Draw.Draw AG.Ids -> Maybe AG.Ids
 locateClick x y draw = System.IO.Unsafe.unsafePerformIO $ (getIds (fromIntegral x) (fromIntegral y) draw)
     where getIds x' y' draw' =  do
             let pos = (convCoords x' y')
             res <- Draw.click pos draw'
             return res
 
-sdlToAGEvents :: Yampa.SF (SDL.Event, Draw.Draw AG.Id) (Yampa.Event (AGEvent String String))
+sdlToAGEvents :: Yampa.SF (SDL.Event, Draw.Draw AG.Ids) (Yampa.Event (AGEvent String String))
 sdlToAGEvents = proc (sdlEvent, draw) -> do
                   let anGraphEvent = case (sdlEvent) of
                                        SDL.KeyDown ks -> case (SDL.symKey ks) of
@@ -107,11 +109,19 @@ eventToAG = proc (anGraphEvent, ag) -> do
                                  Yampa.Event (AddNewNode x) -> AG.setNeedsLayout True (AG.insNewLNode x ag) 
                                  Yampa.Event (MouseMotion x y) -> AG.setMousePos mouseVec ag
                                                                   where mouseVec = (Vector2.vector2 (fromIntegral x) (fromIntegral y))
+--                                 Yampa.Event (AGElementSelected id') -> updatedSelectedElements id' ag
                                  _ -> ag
                    Yampa.returnA -< resAG
 
+-- updatedSelectedElements :: AG.Ids -> AG.AnnotatedGraph a b -> AG.AnnotatedGraph a b
+-- updatedSelectedElements id' ag = if (Set.size nodes == 2) then updatedAg else updatedAg
+--                                    -- todo fix
+--                                    --(AG.connectNodes nodes updatedAg) else updatedAg
+--     where updatedAg = AG.setSelectedElements id' ag
+--           nodes = Set.filter (AG.idIsElement AG.Node) (AG.vrNodes updatedAg)
+          
 
-procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b) (Draw.Draw AG.Id)
+procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b) (Draw.Draw AG.Ids)
 procRenderAG = proc ag -> do
              Yampa.returnA -< (Render.renderAG ag)
 
