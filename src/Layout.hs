@@ -12,7 +12,7 @@ import qualified Data.IntMap as IntMap
 
 -- fclabel stuff
 import Prelude hiding ((.),id,mod)
-import Control.Category
+-- import Control.Category
 import Data.Record.Label
 --
 
@@ -33,12 +33,12 @@ nodeAttrsToVRDN = foldr addVRDNAttr AG.defaultVRDN
 autoLayout :: AG.AnnotatedGraph a b -> AG.AnnotatedGraph a b
 autoLayout ag = AG.AG gr newVRN newVRE newVRG
   where gr = AG.graph ag
-        oldVRN = AG.vrNodes ag
+        -- oldVRN = AG.vrNodes ag
         oldVRE = AG.vrEdges ag
         newVRE = oldVRE
         dotizedGr = GraphViz.dotizeGraph True gr
         newVRN = Graph.ufold convToVRN AG.vrNodeEmpty dotizedGr
         newVRG = set AG.lNeedsLayout False (AG.vrGraph ag)
-        convToVRN (inEdges, node, (grvAttrs, _), outEdges) vrNodes = 
+        convToVRN (_, node, (grvAttrs, _), _) vrNodes = 
             IntMap.insert node (nodeAttrsToVRDN grvAttrs) vrNodes
 
