@@ -10,6 +10,12 @@ import qualified Data.GraphViz.Attributes as GVAttrs
 
 import qualified Data.IntMap as IntMap
 
+-- fclabel stuff
+import Prelude hiding ((.),id,mod)
+import Control.Category
+import Data.Record.Label
+--
+
 pointToVec :: GVAttrs.Point -> Vector2.Vector2 Double 
 pointToVec (GVAttrs.Point x y) = Vector2.vector2 (fromIntegral x) (fromIntegral y)
 pointToVec (GVAttrs.PointD x y) = Vector2.vector2 x y
@@ -32,7 +38,7 @@ autoLayout ag = AG.AG gr newVRN newVRE newVRG
         newVRE = oldVRE
         dotizedGr = GraphViz.dotizeGraph True gr
         newVRN = Graph.ufold convToVRN AG.vrNodeEmpty dotizedGr
-        newVRG = (AG.vrGraph ag){AG.needsLayout = False}
-        convToVRN (inEdges, node, (grvAttrs, label), outEdges) vrNodes = 
+        newVRG = set AG.lNeedsLayout False (AG.vrGraph ag)
+        convToVRN (inEdges, node, (grvAttrs, _), outEdges) vrNodes = 
             IntMap.insert node (nodeAttrsToVRDN grvAttrs) vrNodes
 
