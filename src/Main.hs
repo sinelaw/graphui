@@ -104,8 +104,8 @@ eventToAG :: (Show a, Eq a, Show b, Eq b) => Yampa.SF (Yampa.Event (AGEvent a b)
 eventToAG = proc (anGraphEvent, ag) -> do 
                    let resAG = case anGraphEvent of
                                  Yampa.NoEvent -> ag
-                                 Yampa.Event (AddNewNode x) -> AG.insNewLNode x ag
-                                 Yampa.Event (MouseMotion x y) -> ag{AG.vrGraph = AG.VRGraph{AG.mousePos = Vector2.vector2 (fromIntegral x) (fromIntegral y)}}
+                                 Yampa.Event (AddNewNode x) -> (AG.insNewLNode x ag){AG.vrGraph = (AG.vrGraph ag){AG.needsLayout=True}}
+                                 Yampa.Event (MouseMotion x y) -> ag{AG.vrGraph = AG.VRGraph{AG.mousePos = Vector2.vector2 (fromIntegral x) (fromIntegral y), AG.needsLayout = False}}
                                  _ -> ag
                    Yampa.returnA -< resAG
 
@@ -120,4 +120,7 @@ guiEventHandler = proc agEvent -> do
 
 layoutAG :: Yampa.SF (AG.AnnotatedGraph a b) (AG.AnnotatedGraph a b)
 layoutAG = proc ag -> do
-             Yampa.returnA -< (Layout.autoLayout ag)
+             let laidOutAG = case (AG.needsLayout . AG.vrGraph $ ag) of
+                               True -> (Layout.autoLayout ag)
+                               False -> ag
+             Yampa.returnA -< laidOutAG

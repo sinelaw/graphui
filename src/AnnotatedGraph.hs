@@ -62,7 +62,7 @@ data VRDEdge = VRDEEmpty | VRDEdge { widthE :: Double,
                         
 type VREdge = IntMap.IntMap VRDEdge
 
-data VRGraph = VRGraph { mousePos :: Vector2.Vector2 Double }
+data VRGraph = VRGraph { mousePos :: Vector2.Vector2 Double, needsLayout :: Bool }
   
 data AnnotatedGraph a b = AG { graph :: GraphStructure a b, vrNodes :: VRNode, vrEdges :: VREdge, vrGraph :: VRGraph}
 
