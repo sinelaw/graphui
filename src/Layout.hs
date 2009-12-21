@@ -26,13 +26,14 @@ nodeAttrsToVRDN :: GVAttrs.Attributes -> AG.VRDNode
 nodeAttrsToVRDN = foldr addVRDNAttr AG.defaultVRDN
 
 autoLayout :: AG.AnnotatedGraph a b -> AG.AnnotatedGraph a b
-autoLayout ag = AG.AG gr newVRN newVRE 
+autoLayout ag = AG.AG gr newVRN newVRE newVRG
   where gr = AG.graph ag
         oldVRN = AG.vrNodes ag
         oldVRE = AG.vrEdges ag
         newVRE = oldVRE
         dotizedGr = GraphViz.dotizeGraph True gr
         newVRN = Graph.ufold convToVRN AG.vrNodeEmpty dotizedGr
+        newVRG = AG.vrGraph ag
         convToVRN (inEdges, node, (grvAttrs, label), outEdges) vrNodes = 
             IntMap.insert node (nodeAttrsToVRDN grvAttrs) vrNodes
 

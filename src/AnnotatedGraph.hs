@@ -62,19 +62,24 @@ data VRDEdge = VRDEEmpty | VRDEdge { widthE :: Double,
                         
 type VREdge = IntMap.IntMap VRDEdge
 
-data AnnotatedGraph a b = AG { graph :: GraphStructure a b, vrNodes :: VRNode, vrEdges :: VREdge }
+data VRGraph = VRGraph { mousePos :: Vector2.Vector2 Double }
+  
+data AnnotatedGraph a b = AG { graph :: GraphStructure a b, vrNodes :: VRNode, vrEdges :: VREdge, vrGraph :: VRGraph}
 
 instance Show (AnnotatedGraph a b) where
   show ag = ("(AG: vrNodes = " ++ (show (vrNodes ag)) ++ ")")
 
 empty :: AnnotatedGraph a b
-empty = AG { graph = Graph.empty, vrNodes = IntMap.empty, vrEdges = IntMap.empty }
+empty = AG { graph = Graph.empty, vrNodes = IntMap.empty, vrEdges = IntMap.empty, vrGraph = VRGraph{mousePos = Vector2.zeroVector} }
 
 newLNode :: a -> AnnotatedGraph a b -> Graph.LNode a
 newLNode label ag = newGrLNode label (graph ag)
 
 insLNode :: Graph.LNode a -> AnnotatedGraph a b -> AnnotatedGraph a b
-insLNode n (AG gr nodes edges) = AG (Graph.insNode n gr) (IntMap.insert (fst n) defaultVRDN nodes) edges
+insLNode n ag = AG{ graph = (Graph.insNode n (graph ag)), 
+                    vrNodes = (IntMap.insert (fst n) defaultVRDN (vrNodes ag)),
+                    vrEdges = (vrEdges ag),
+                    vrGraph = (vrGraph ag)}
 
 insNewLNode :: a -> AnnotatedGraph a b -> AnnotatedGraph a b
 insNewLNode x ag = insLNode (newLNode x ag) ag

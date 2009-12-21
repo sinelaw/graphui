@@ -11,7 +11,7 @@ import Math.Bezier(bezierNSamples)
 import qualified Graphics.DrawingCombinators as Draw
 
 renderAG :: AG.AnnotatedGraph a b -> Draw.Draw AG.Id
-renderAG (AG.AG _ vrNodes vrEdges) = mconcat (renderedNodes ++ renderedEdges) where 
+renderAG (AG.AG _ vrNodes vrEdges _) = mconcat (renderedNodes ++ renderedEdges) where 
     renderedNodes = renderElements vrNodes renderNode
     renderedEdges = renderElements vrEdges renderEdge
     renderElements elMap renderFunc = map (uncurry renderFunc) (IntMap.toList elMap)
@@ -34,7 +34,7 @@ renderEdge jd vrdEdge = mconcat (map mkLine (zip ps (tail ps))) where
 
 -- Temporary hacks
 box :: Draw.Draw ()
-box = Draw.scale 0.2 0.2
+box = Draw.scale 0.02 0.02
         $ Draw.color (1,0,0,1) 
         $ Draw.convexPoly
             [(1,1),(1,-1),(-1,-1),(-1,1)]

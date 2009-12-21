@@ -1,3 +1,4 @@
+import qualified Math.Vector2 as Vector2
 import qualified Graphics.DrawingCombinators as Draw
 import qualified Graphics.UI.SDL as SDL
 
@@ -9,6 +10,7 @@ import qualified System.IO.Unsafe
 
 import qualified FRP.Yampa as Yampa
 import Control.Monad(when)
+import Data.Monoid(Monoid(..))
 
 resX :: Int
 resX = 640 
@@ -23,8 +25,6 @@ initScreen = do
     return ()
 
 
-
-
 sense :: Bool -> IO (Yampa.DTime, Maybe SDL.Event)
 sense canBlock = do
     ev <- SDL.waitEvent
@@ -33,11 +33,13 @@ sense canBlock = do
 actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Id, Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) -> IO Bool
 actuate mayHaveChanged (needQuit, d, agEvent, ag) = do
 --    print ag
-    when (agEvent /= Yampa.NoEvent) (print . Yampa.fromEvent $ agEvent)
+--    when (agEvent /= Yampa.NoEvent) (print . Yampa.fromEvent $ agEvent)
     when (not needQuit && mayHaveChanged) redraw
     return needQuit
   where
-    redraw = Draw.draw d >> SDL.glSwapBuffers
+    (x,y) = Vector2.vector2XY . AG.mousePos . AG.vrGraph $ ag
+    cursor = (Draw.translate (convCoords (x) (y)) (Render.nodeBox 123))
+    redraw = Draw.draw (cursor `mappend` d) >> SDL.glSwapBuffers
   
 initial :: IO SDL.Event
 initial = do
@@ -70,14 +72,14 @@ main = do
   return ()
 
 
-data AGEvent a b = AddNewNode a | RemoveNode Int | AddEdge b Int Int | Quit | AGElementSelected AG.Id
+data AGEvent a b = AddNewNode a | RemoveNode Int | AddEdge b Int Int | Quit | AGElementSelected AG.Id | MouseMotion Int Int
                    deriving (Eq, Show)
 
-convCoords :: (Integral a, Fractional b) => a -> a -> (b, b)
-convCoords x y = (2*(fromIntegral x / fromIntegral resX) - 1, 1 - 2*(fromIntegral y / fromIntegral resY))
+convCoords :: Double -> Double -> (Double, Double)
+convCoords x y = (2*(x / fromIntegral resX) - 1, 1 - 2*(y / fromIntegral resY))
 
 locateClick :: (Integral a) => a -> a -> Draw.Draw AG.Id -> Maybe AG.Id
-locateClick x y draw = System.IO.Unsafe.unsafePerformIO $ (getIds x y draw)
+locateClick x y draw = System.IO.Unsafe.unsafePerformIO $ (getIds (fromIntegral x) (fromIntegral y) draw)
     where getIds x' y' draw' =  do
             let pos = (convCoords x' y')
             res <- Draw.click pos draw'
@@ -91,7 +93,8 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
                                                            _          -> Yampa.NoEvent
                                        SDL.MouseButtonDown x y _ -> case locateClick x y draw of 
                                                                       Nothing -> Yampa.NoEvent
-                                                                      Just id -> Yampa.Event (AGElementSelected id)
+                                                                      Just id' -> Yampa.Event (AGElementSelected id')
+                                       SDL.MouseMotion x y _ _ -> Yampa.Event (MouseMotion (fromIntegral x) (fromIntegral y))
                                        SDL.Quit -> Yampa.Event Quit
                                        _ -> Yampa.NoEvent
                   Yampa.returnA -< anGraphEvent
@@ -102,6 +105,7 @@ eventToAG = proc (anGraphEvent, ag) -> do
                    let resAG = case anGraphEvent of
                                  Yampa.NoEvent -> ag
                                  Yampa.Event (AddNewNode x) -> AG.insNewLNode x ag
+                                 Yampa.Event (MouseMotion x y) -> ag{AG.vrGraph = AG.VRGraph{AG.mousePos = Vector2.vector2 (fromIntegral x) (fromIntegral y)}}
                                  _ -> ag
                    Yampa.returnA -< resAG
 
