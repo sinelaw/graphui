@@ -7,8 +7,6 @@ import qualified Layout
 
 import qualified System.IO.Unsafe
 
-import qualified Data.Set as Set
-
 import qualified FRP.Yampa as Yampa
 import Control.Monad(when)
 
@@ -32,10 +30,10 @@ sense canBlock = do
     ev <- SDL.waitEvent
     return (0, Just ev)
     
-actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Id, AGEvent a b, AG.AnnotatedGraph a b) -> IO Bool
+actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Id, Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) -> IO Bool
 actuate mayHaveChanged (needQuit, d, agEvent, ag) = do
 --    print ag
-    when (agEvent /= NoEvent) (print agEvent)
+    when (agEvent /= Yampa.NoEvent) (print . Yampa.fromEvent $ agEvent)
     when (not needQuit && mayHaveChanged) redraw
     return needQuit
   where
@@ -50,7 +48,7 @@ initial = do
 processor :: Yampa.SF SDL.Event (Bool,  -- shall we quit?
                                  Draw.Draw AG.Id, -- The updated rendered screen
                                  -- Debugging stuff:
-                                 AGEvent String String,  -- The event processed
+                                 Yampa.Event (AGEvent String String),  -- The event processed
                                  AG.AnnotatedGraph String String -- the resulting annotated graph
                                 )
 processor = proc sdlEvent -> do
@@ -59,7 +57,7 @@ processor = proc sdlEvent -> do
                   -- todo use accumHold or variants?
                   laidOutAg <- layoutAG -< ag
                   preAg <- agIPre -< laidOutAg
-                  draw <- procRenderAG -< ag
+                  draw <- procRenderAG -< preAg
               needQuit <- guiEventHandler -< agEvent
               Yampa.returnA -< (needQuit, draw, agEvent, laidOutAg)
             where agIPre = Yampa.iPre AG.empty
@@ -72,37 +70,38 @@ main = do
   return ()
 
 
-data AGEvent a b = AddNewNode a | RemoveNode Int | AddEdge b Int Int | Quit | NoEvent | AGElementSelected AG.Id
+data AGEvent a b = AddNewNode a | RemoveNode Int | AddEdge b Int Int | Quit | AGElementSelected AG.Id
                    deriving (Eq, Show)
 
 convCoords :: (Integral a, Fractional b) => a -> a -> (b, b)
 convCoords x y = (2*(fromIntegral x / fromIntegral resX) - 1, 1 - 2*(fromIntegral y / fromIntegral resY))
 
-locateClick :: (Integral a) => a -> a -> Draw.Draw AG.Id -> AG.Id
-locateClick x y draw = unMaybeID . System.IO.Unsafe.unsafePerformIO $ (getIds x y draw)
+locateClick :: (Integral a) => a -> a -> Draw.Draw AG.Id -> Maybe AG.Id
+locateClick x y draw = System.IO.Unsafe.unsafePerformIO $ (getIds x y draw)
     where getIds x' y' draw' =  do
             let pos = (convCoords x' y')
             res <- Draw.click pos draw'
             return res
-          unMaybeID (Just id) = id
-          unMaybeID Nothing = AG.Id Set.empty
 
-sdlToAGEvents :: Yampa.SF (SDL.Event, Draw.Draw AG.Id) (AGEvent String String)
+sdlToAGEvents :: Yampa.SF (SDL.Event, Draw.Draw AG.Id) (Yampa.Event (AGEvent String String))
 sdlToAGEvents = proc (sdlEvent, draw) -> do
                   let anGraphEvent = case (sdlEvent) of
                                        SDL.KeyDown ks -> case (SDL.symKey ks) of
-                                                           SDL.SDLK_a -> AddNewNode "new"
-                                                           _          -> NoEvent
-                                       SDL.MouseButtonDown x y _ -> AGElementSelected (locateClick x y draw)
-                                       SDL.Quit -> Quit
-                                       _ -> NoEvent
+                                                           SDL.SDLK_a -> Yampa.Event . AddNewNode $ "new"
+                                                           _          -> Yampa.NoEvent
+                                       SDL.MouseButtonDown x y _ -> case locateClick x y draw of 
+                                                                      Nothing -> Yampa.NoEvent
+                                                                      Just id -> Yampa.Event (AGElementSelected id)
+                                       SDL.Quit -> Yampa.Event Quit
+                                       _ -> Yampa.NoEvent
                   Yampa.returnA -< anGraphEvent
 
 
-eventToAG :: (Show a, Eq a, Show b, Eq b) => Yampa.SF (AGEvent a b, AG.AnnotatedGraph a b) (AG.AnnotatedGraph a b)
+eventToAG :: (Show a, Eq a, Show b, Eq b) => Yampa.SF (Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) (AG.AnnotatedGraph a b)
 eventToAG = proc (anGraphEvent, ag) -> do 
                    let resAG = case anGraphEvent of
-                                 AddNewNode x -> AG.insNewLNode x ag
+                                 Yampa.NoEvent -> ag
+                                 Yampa.Event (AddNewNode x) -> AG.insNewLNode x ag
                                  _ -> ag
                    Yampa.returnA -< resAG
 
@@ -111,9 +110,9 @@ procRenderAG = proc ag -> do
              Yampa.returnA -< (Render.renderAG ag)
 
 
-guiEventHandler :: (Eq a, Eq b) => Yampa.SF (AGEvent a b) Bool
+guiEventHandler :: (Eq a, Eq b) => Yampa.SF (Yampa.Event (AGEvent a b)) Bool
 guiEventHandler = proc agEvent -> do
-                    Yampa.returnA -< (agEvent == Quit)
+                    Yampa.returnA -< (agEvent == Yampa.Event Quit)
 
 layoutAG :: Yampa.SF (AG.AnnotatedGraph a b) (AG.AnnotatedGraph a b)
 layoutAG = proc ag -> do
