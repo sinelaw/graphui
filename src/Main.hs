@@ -75,15 +75,14 @@ main = do
 data AGEvent a b = AddNewNode a | RemoveNode Int | AddEdge b Int Int | Quit | NoEvent | AGElementSelected AG.Id
                    deriving (Eq, Show)
 
-convCoords :: (Integral a, Num b) => a -> a -> (b, b)
-convCoords x y = (fromIntegral x, fromIntegral y)
+convCoords :: (Integral a, Fractional b) => a -> a -> (b, b)
+convCoords x y = (2*(fromIntegral x / fromIntegral resX) - 1, 1 - 2*(fromIntegral y / fromIntegral resY))
 
 locateClick :: (Integral a) => a -> a -> Draw.Draw AG.Id -> AG.Id
 locateClick x y draw = unMaybeID . System.IO.Unsafe.unsafePerformIO $ (getIds x y draw)
     where getIds x' y' draw' =  do
             let pos = (convCoords x' y')
             res <- Draw.click pos draw'
-            print (res, pos)
             return res
           unMaybeID (Just id) = id
           unMaybeID Nothing = AG.Id Set.empty

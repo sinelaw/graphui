@@ -3,7 +3,6 @@ module Render where
 import Data.Monoid
 import qualified Data.IntMap as IntMap
 
-import qualified Data.Set as Set
 
 import qualified AnnotatedGraph as AG
 import qualified Math.Vector2 as Vector2
@@ -29,7 +28,7 @@ renderEdge :: Int -> AG.VRDEdge -> Draw.Draw AG.Id
 renderEdge jd vrdEdge = mconcat (map mkLine (zip ps (tail ps))) where
     ps = bezierNSamples (AG.bezierSamplesE vrdEdge) (AG.pointsE vrdEdge)
     mkLine = (fmap mkId) . (uncurry Draw.line) . (onBoth Vector2.vector2XY)
-    mkId = const (AG.Id (Set.singleton (AG.Edge, jd)))
+    mkId = const (AG.newId AG.Edge jd)
 
 
 
