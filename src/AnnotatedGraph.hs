@@ -27,7 +27,7 @@ newGrLNode :: a -> PTGraph.Gr a b -> Graph.LNode a
 newGrLNode label' gr = (newGrNode gr, label')
 
 newGrEdgeNum :: PTGraph.Gr a (Int, b) -> Int
-newGrEdgeNum gr = 1 + (foldr (\(n1,n2,(i,label')) prev -> max prev i) 0 (Graph.labEdges gr))
+newGrEdgeNum gr = 1 + foldr (\(n1,n2,(i,label')) prev -> max prev i) 0 (Graph.labEdges gr)
 
 newGrLEdge :: Int -> Int -> b -> PTGraph.Gr a (Int, b) -> Graph.LEdge (Int, b)
 newGrLEdge n1 n2 label' gr = (n1, n2, (newGrEdgeNum gr, label'))
@@ -71,7 +71,7 @@ data VRDEdge = VRDEEmpty | VRDEdge { widthE :: Double,
                         
 defaultVRDE :: VRDEdge
 defaultVRDE = VRDEdge { widthE = 0,
-                        pointsE = take 4 (repeat Vector2.zeroVector),
+                        pointsE = replicate 4 Vector2.zeroVector,
                         bezierSamplesE = 10 }
 
 type VREdge = IntMap.IntMap VRDEdge
@@ -132,7 +132,7 @@ insNewLNode x ag = insLNode (newLNode x ag) ag
 
 
 newLEdge :: Int -> Int -> b -> AnnotatedGraph a b -> Graph.LEdge (Int, b)
-newLEdge n1 n2 label' ag = newGrLEdge n1 n2 label' (graph ag)
+newLEdge n1 n2 label' = newGrLEdge n1 n2 label' . graph
 
 insLEdge :: Graph.LEdge (Int,b) -> AnnotatedGraph a b -> AnnotatedGraph a b
 insLEdge eg@(_,_,(id',_)) ag = set lVrEdges newVREdges updatedGr

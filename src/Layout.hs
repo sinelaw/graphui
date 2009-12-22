@@ -29,7 +29,7 @@ addVRDNAttr attr vrdn = case attr of
   
 addVRDEAttr :: GVAttrs.Attribute -> AG.VRDEdge -> AG.VRDEdge
 addVRDEAttr attr vrde = case attr of
-  GVAttrs.Pos (GVAttrs.SplinePos ((GVAttrs.Spline s e ps):_)) -> vrde{AG.pointsE = vecs}
+  GVAttrs.Pos (GVAttrs.SplinePos ((GVAttrs.Spline s e ps):_)) -> vrde{AG.pointsE = vecs, AG.widthE=3} -- =3 is a debug thing
       where fixP (Just p) _ = p
             fixP Nothing p' = p'
             points = [fixP s (head ps)] ++ ps ++ [fixP e (last ps)]
