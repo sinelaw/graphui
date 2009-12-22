@@ -18,7 +18,7 @@ renderAG (AG.AG _ vrNodes vrEdges _) = mconcat (renderedNodes ++ renderedEdges) 
 
 
 
-scaleV = (Vector2.^/ 1000)
+scaleV = (Vector2.^/ 500)
 
 renderNode :: Int -> AG.VRDNode -> Draw.Draw AG.Ids
 renderNode n vrdNode = Draw.translate (Vector2.vector2XY . scaleV . AG.positionN $ vrdNode) (nodeBox n)
@@ -37,7 +37,7 @@ renderEdge jd vrdEdge = mconcat (map mkLine (zip ps (tail ps))) where
 
 -- Temporary hacks
 box :: Draw.Draw ()
-box = Draw.scale 0.02 0.02
+box = Draw.scale 0.04 0.04
         $ Draw.color (1,0,0,1) 
         $ Draw.convexPoly
             [(1,1),(1,-1),(-1,-1),(-1,1)]
