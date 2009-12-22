@@ -33,7 +33,7 @@ sense _ = do
     return (0, Just ev)
     
 actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Ids, Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) -> IO Bool
-actuate mayHaveChanged (needQuit, d, agEvent, ag) = do
+actuate mayHaveChanged (needQuit, d, _, ag) = do
     --print ag
     --when (agEvent /= Yampa.NoEvent) (print . Yampa.fromEvent $ agEvent)
     when (not needQuit && mayHaveChanged) redraw
@@ -74,7 +74,12 @@ main = do
   return ()
 
 
-data AGEvent a b = AddNewNode a | RemoveNode Int | AddEdge b Int Int | Quit | AGElementSelected AG.Ids | MouseMotion Int Int
+data AGEvent a b = AddNewNode a 
+                 -- | RemoveNode Int 
+                 -- | AddEdge b Int Int 
+                 | Quit 
+                 | AGElementSelected AG.Ids 
+                 | MouseMotion Int Int
                    deriving (Eq, Show)
 
 convCoords :: Double -> Double -> (Double, Double)
