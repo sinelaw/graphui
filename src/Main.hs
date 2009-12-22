@@ -34,8 +34,8 @@ sense canBlock = do
     
 actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Ids, Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) -> IO Bool
 actuate mayHaveChanged (needQuit, d, agEvent, ag) = do
---    print ag
---    when (agEvent /= Yampa.NoEvent) (print . Yampa.fromEvent $ agEvent)
+    print ag
+    when (agEvent /= Yampa.NoEvent) (print . Yampa.fromEvent $ agEvent)
     when (not needQuit && mayHaveChanged) redraw
     return needQuit
   where
@@ -102,23 +102,23 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
                   Yampa.returnA -< anGraphEvent
 
 
-eventToAG :: (Show a, Eq a, Show b, Eq b) => Yampa.SF (Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) (AG.AnnotatedGraph a b)
+eventToAG :: (Show a, Eq a) => Yampa.SF (Yampa.Event (AGEvent a String), AG.AnnotatedGraph a String) (AG.AnnotatedGraph a String)
 eventToAG = proc (anGraphEvent, ag) -> do 
                    let resAG = case anGraphEvent of
                                  Yampa.NoEvent -> ag
                                  Yampa.Event (AddNewNode x) -> AG.setNeedsLayout True (AG.insNewLNode x ag) 
                                  Yampa.Event (MouseMotion x y) -> AG.setMousePos mouseVec ag
                                                                   where mouseVec = (Vector2.vector2 (fromIntegral x) (fromIntegral y))
---                                 Yampa.Event (AGElementSelected id') -> updatedSelectedElements id' ag
+                                 Yampa.Event (AGElementSelected id') -> updatedSelectedElements id' ag
                                  _ -> ag
                    Yampa.returnA -< resAG
 
--- updatedSelectedElements :: AG.Ids -> AG.AnnotatedGraph a b -> AG.AnnotatedGraph a b
--- updatedSelectedElements id' ag = if (Set.size nodes == 2) then updatedAg else updatedAg
---                                    -- todo fix
---                                    --(AG.connectNodes nodes updatedAg) else updatedAg
---     where updatedAg = AG.setSelectedElements id' ag
---           nodes = Set.filter (AG.idIsElement AG.Node) (AG.vrNodes updatedAg)
+updatedSelectedElements :: AG.Ids -> AG.AnnotatedGraph a String -> AG.AnnotatedGraph a String
+updatedSelectedElements id' ag = if (Set.size nodes == 2) then (AG.connectNodes nodes "new" updatedAg) else updatedAg
+    where updatedAg = AG.setSelectedElements updatedSelected ag
+          nodes = Set.filter (AG.idIsElement AG.Node) updatedSelected
+          updatedSelected = (Set.union id' (getSelected ag))
+          getSelected = AG.selectedElements . AG.vrGraph 
           
 
 procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b) (Draw.Draw AG.Ids)

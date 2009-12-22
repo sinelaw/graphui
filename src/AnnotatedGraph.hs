@@ -23,14 +23,14 @@ type Color = (Double, Double, Double, Double)
 newGrNode :: PTGraph.Gr a b -> Graph.Node
 newGrNode = head . Graph.newNodes 1
 
--- newGrEdge :: PTGraph.Gr a b -> Graph.Edge
--- newGrEdge gr = 1 + (foldr (\prev (i,label') -> max 0 (Graph.edges gr))
-
 newGrLNode :: a -> PTGraph.Gr a b -> Graph.LNode a
 newGrLNode label' gr = (newGrNode gr, label')
 
--- newGrLEdge :: b -> PTGraph.Gr a b -> Graph.LEdge b
--- newGrLEdge n1 n2 label' gr = (newGrEdge gr, label')
+newGrEdgeNum :: PTGraph.Gr a (Int, b) -> Int
+newGrEdgeNum gr = 1 + (foldr (\(n1,n2,(i,label')) prev -> max prev i) 0 (Graph.labEdges gr))
+
+newGrLEdge :: Int -> Int -> b -> PTGraph.Gr a (Int, b) -> Graph.LEdge (Int, b)
+newGrLEdge n1 n2 label' gr = (n1, n2, (newGrEdgeNum gr, label'))
 
 data ElementType = Node | Edge
      deriving (Ord, Eq, Show)
@@ -66,26 +66,34 @@ vrNodeEmpty = IntMap.empty
 
 data VRDEdge = VRDEEmpty | VRDEdge { widthE :: Double, 
                                      pointsE :: [Vector2.Vector2 Double], 
-                                     colorE :: Color , 
                                      bezierSamplesE :: Int } 
                deriving (Show,Eq)
                         
+defaultVRDE :: VRDEdge
+defaultVRDE = VRDEdge { widthE = 0,
+                        pointsE = take 4 (repeat Vector2.zeroVector),
+                        bezierSamplesE = 10 }
+
 type VREdge = IntMap.IntMap VRDEdge
 
-data VRGraph = VRGraph { mousePos :: Vector2.Vector2 Double, needsLayout :: Bool, selectedElements :: Set.Set Id }
+vrEdgeEmpty :: VREdge
+vrEdgeEmpty = IntMap.empty
+
+data VRGraph = VRGraph { mousePos :: Vector2.Vector2 Double, needsLayout :: Bool, selectedElements :: Ids }
+               deriving (Show)
   
-data AnnotatedGraph a b = AG { graph :: GraphStructure a b, vrNodes :: VRNode, vrEdges :: VREdge, vrGraph :: VRGraph}
+data AnnotatedGraph a b = AG { graph :: GraphStructure a (Int, b), vrNodes :: VRNode, vrEdges :: VREdge, vrGraph :: VRGraph}
 
 -- Use fclabels to make nicer field accessors
 $(mkLabels [''AnnotatedGraph, ''VRNode, ''VREdge, ''VRGraph])
   
-lSelectedElements :: VRGraph :-> Set.Set Id
+lSelectedElements :: VRGraph :-> Ids
 lNeedsLayout :: VRGraph :-> Bool
 lMousePos :: VRGraph :-> Vector2.Vector2 Double
 lVrGraph :: AnnotatedGraph a b :-> VRGraph
 lVrEdges :: AnnotatedGraph a b :-> VREdge                                        
 lVrNodes :: AnnotatedGraph a b :-> VRNode                                        
-lGraph :: AnnotatedGraph a b :-> GraphStructure a b                                        
+lGraph :: AnnotatedGraph a b :-> GraphStructure a (Int, b) 
                                       
 setNeedsLayout :: Bool -> AnnotatedGraph a b -> AnnotatedGraph a b
 setNeedsLayout = set (lNeedsLayout . lVrGraph)
@@ -93,11 +101,16 @@ setNeedsLayout = set (lNeedsLayout . lVrGraph)
 setMousePos :: Vector2.Vector2 Double -> AnnotatedGraph a b -> AnnotatedGraph a b
 setMousePos = set (lMousePos . lVrGraph)
 
-setSelectedElements :: Set.Set Id -> AnnotatedGraph a b -> AnnotatedGraph a b
+setSelectedElements :: Ids -> AnnotatedGraph a b -> AnnotatedGraph a b
 setSelectedElements = set (lSelectedElements . lVrGraph)
 
 instance Show (AnnotatedGraph a b) where
-  show ag = "(AG: vrNodes = " ++ show (vrNodes ag) ++ ")"
+  show ag = "(AG: vrGraph = " ++ show (vrGraph ag)  
+            ++ " ;\n\tvrNodes = " ++ show (vrNodes ag)  
+            ++ " ;\n\tvrEdges = " ++ show (vrEdges ag)  
+            ++ " ;\n\tnodes = " ++ show (Graph.nodes (graph ag)) 
+            ++ " ;\n\tedges = " ++ show (Graph.edges (graph ag)) 
+            ++ ")"
 
 empty :: AnnotatedGraph a b
 empty = AG { graph = Graph.empty, 
@@ -110,20 +123,28 @@ newLNode :: a -> AnnotatedGraph a b -> Graph.LNode a
 newLNode label' = newGrLNode label' . graph
 
 insLNode :: Graph.LNode a -> AnnotatedGraph a b -> AnnotatedGraph a b
-insLNode n ag = AG{ graph = (Graph.insNode n (graph ag)), 
-                    vrNodes = (IntMap.insert (fst n) defaultVRDN (vrNodes ag)),
-                    vrEdges = (vrEdges ag),
-                    vrGraph = (vrGraph ag)}
+insLNode n ag = set lVrNodes newVRNodes updatedGr
+    where updatedGr = set lGraph (Graph.insNode n (graph ag)) ag
+          newVRNodes = IntMap.insert (fst n) defaultVRDN (vrNodes ag)
 
 insNewLNode :: a -> AnnotatedGraph a b -> AnnotatedGraph a b
 insNewLNode x ag = insLNode (newLNode x ag) ag
 
 
--- newLEdge :: b -> AnnotatedGraph a b -> Graph.LEdge b
--- newLEdge label' ag = newGrLEdge label' (graph ag)
+newLEdge :: Int -> Int -> b -> AnnotatedGraph a b -> Graph.LEdge (Int, b)
+newLEdge n1 n2 label' ag = newGrLEdge n1 n2 label' (graph ag)
 
--- insLEdge :: Graph.LEdge b -> AnnotatedGraph a b -> AnnotatedGraph a b
--- insLEdge id' n1 n2 ag = 
+insLEdge :: Graph.LEdge (Int,b) -> AnnotatedGraph a b -> AnnotatedGraph a b
+insLEdge eg@(_,_,(id',_)) ag = set lVrEdges newVREdges updatedGr
+  where updatedGr = set lGraph (Graph.insEdge eg (graph ag)) ag
+        newVREdges = IntMap.insert id' defaultVRDE (vrEdges ag)
 
--- connectNodes :: Ids -> AnnotatedGraph a b -> AnnotatedGraph a b
--- connectNodes nodeIds ag = Graph.insEdge
+insNewLEdge :: Int -> Int -> b -> AnnotatedGraph a b -> AnnotatedGraph a b
+insNewLEdge n1 n2 label' ag = insLEdge (newLEdge n1 n2 label' ag) ag
+
+connectNodes :: Ids -> b -> AnnotatedGraph a b -> AnnotatedGraph a b
+connectNodes nodeIds label' ag = foldr connect' ag nodePairs
+    where nlist = Set.toList nodeIds
+          nodePairs = zip nlist (tail nlist)
+          connect' (Id Node n1, Id Node n2) = insNewLEdge n1 n2 label'
+          connect' _ = error "Expecting node IDs when connecting a new edge"
