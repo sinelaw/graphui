@@ -109,3 +109,6 @@ inVSum2 f = inVSum . f . unVSum
 instance RealFloat a => Monoid (VSum a) where
     mempty = VSum zeroVector
     mappend = inVSum2 (^+^)
+
+vsum :: RealFloat a => [Vector2 a] -> Vector2 a
+vsum = unVSum . mconcat . map VSum

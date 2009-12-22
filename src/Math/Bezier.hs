@@ -15,8 +15,8 @@ bezier4 mu v1 v2 v3 v4 = (a^3)*^v1
        
        
 bezierN :: (RealFloat a) => a -> [Vector2 a] -> Vector2 a
-bezierN t ps@(p0:p1:p2:p3:[])  = bezier4 t p0 p1 p2 p3 
-bezierN t ps@(p0:p1:p2:p3:_)   = t *^ bezierN t (tail ps)  ^+^  (1-t) *^ bezierN t (init ps)
+bezierN t    (p0:p1:p2:p3:[])  = bezier4 t p0 p1 p2 p3 
+bezierN t ps@( _: _: _: _:_)   = t *^ bezierN t (tail ps)  ^+^  (1-t) *^ bezierN t (init ps)
 bezierN _ _ = error "Need at least 4 points to calculate bezier"
 
 
