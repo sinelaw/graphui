@@ -18,6 +18,7 @@
 module Math.Vector2 where
 
 import Data.Monoid(Monoid(..))
+import Data.Foldable
 
 ------------------------------------------------------------------------------
 -- 2D vector, constructors and selectors.
@@ -111,4 +112,4 @@ instance RealFloat a => Monoid (VSum a) where
     mappend = inVSum2 (^+^)
 
 vsum :: RealFloat a => [Vector2 a] -> Vector2 a
-vsum = unVSum . mconcat . map VSum
+vsum = foldl' (^+^) zeroVector

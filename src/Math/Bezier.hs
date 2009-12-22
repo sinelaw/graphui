@@ -8,7 +8,10 @@ import Math.Binomial
 bezier4 :: (RealFloat a) => a 
         -> Vector2 a -> Vector2 a -> Vector2 a -> Vector2 a
         -> Vector2 a
-bezier4 mu v1 v2 v3 v4 = foldr (^+^) zeroVector (zipWith (*^) (binomialPoly 3 (1-mu) mu) [v1,v2,v3,v4])
+bezier4 mu v1 v2 v3 v4 = vsum (zipWith (*^) coeffs vectors)
+    where coeffs = binomialPoly 3 (1-mu) mu
+          vectors = [v1,v2,v3,v4]
+
 --
        
        
