@@ -10,11 +10,6 @@ import qualified Data.GraphViz.Attributes as GVAttrs
 
 import qualified Data.IntMap as IntMap
 
--- Debugging
-import Debug.Trace
-traceIt :: (Show a) => String -> a -> a
-traceIt p x = trace (p ++ " " ++ (show x)) x
----
 
 pointToVec :: GVAttrs.Point -> Vector2.Vector2 Double 
 pointToVec (GVAttrs.Point x y) = Vector2.vector2 (fromIntegral x) (fromIntegral y)
@@ -39,7 +34,7 @@ setPointsE points vrde = vrde{AG.pointsE = points,
                          
 addVRDEAttr :: GVAttrs.Attribute -> AG.VRDEdge -> AG.VRDEdge
 addVRDEAttr (GVAttrs.Pos (GVAttrs.SplinePos (s:_))) = setPointsE . splineToVecs $ s
-addVRDEAttr attr = trace (show attr) id
+addVRDEAttr _ = id
   
 nodeAttrsToVRDN :: GVAttrs.Attributes -> AG.VRDNode
 nodeAttrsToVRDN = foldr addVRDNAttr AG.defaultVRDN
@@ -59,5 +54,5 @@ autoLayout ag = AG.AG gr newVRN newVRE newVRG
         newVRG = (AG.vrGraph ag){AG.needsLayout = False}
 --        newVRG = foldr addVRDGAttr (AG.vrGraph
         convToVRN (_, id', (gvAttrs, _), _)  = IntMap.insert id' (nodeAttrsToVRDN gvAttrs)
-        convToVRE (_,_, (gvAttrs, (id', _))) = IntMap.insert id' (edgeAttrsToVRDE (traceIt "gvAttrs:" gvAttrs))
+        convToVRE (_,_, (gvAttrs, (id', _))) = IntMap.insert id' (edgeAttrsToVRDE gvAttrs)
 

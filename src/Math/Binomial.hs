@@ -12,5 +12,5 @@ binomialCoefs n = map (choose n) [0..n]
 binomialPoly :: (Integral a1, Num a) => a1 -> a -> a -> [a]
 binomialPoly n a b = binCoefs .*. aPoly .*. bPoly 
     where binCoefs = map fromIntegral (binomialCoefs n)
-          aPoly = map (a^) [0..(n-1)]
-          bPoly = map (b^) [n-1,n-2..0]
+          bPoly = map (b^) [0..n]
+          aPoly = map (a^) [n,n-1..0]

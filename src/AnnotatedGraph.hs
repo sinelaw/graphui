@@ -72,7 +72,7 @@ data VRDEdge = VRDEEmpty | VRDEdge { widthE :: Double,
 defaultVRDE :: VRDEdge
 defaultVRDE = VRDEdge { widthE = 0,
                         pointsE = replicate 4 Vector2.zeroVector,
-                        bezierSamplesE = 10 }
+                        bezierSamplesE = 7 }
 
 type VREdge = IntMap.IntMap VRDEdge
 
@@ -86,7 +86,10 @@ data VRGraph = VRGraph { mousePos :: Vector2.Vector2 Double,
                          heightG :: Double}
                deriving (Show)
   
-data AnnotatedGraph a b = AG { graph :: GraphStructure a (Int, b), vrNodes :: VRNode, vrEdges :: VREdge, vrGraph :: VRGraph}
+data AnnotatedGraph a b = AG { graph :: GraphStructure a (Int, b), 
+                               vrNodes :: VRNode, 
+                               vrEdges :: VREdge, 
+                               vrGraph :: VRGraph}
 
 -- Use fclabels to make nicer field accessors
 $(mkLabels [''AnnotatedGraph, ''VRNode, ''VREdge, ''VRGraph])
@@ -125,7 +128,11 @@ empty :: AnnotatedGraph a b
 empty = AG { graph = Graph.empty, 
              vrNodes = IntMap.empty, 
              vrEdges = IntMap.empty, 
-             vrGraph = VRGraph{mousePos = Vector2.zeroVector, needsLayout = False, selectedElements = mempty, widthG = 0, heightG = 0 } 
+             vrGraph = VRGraph{mousePos = Vector2.zeroVector, 
+                               needsLayout = False, 
+                               selectedElements = mempty, 
+                               widthG = 0, 
+                               heightG = 0 } 
            }
 
 newLNode :: a -> AnnotatedGraph a b -> Graph.LNode a

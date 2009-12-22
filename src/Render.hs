@@ -7,7 +7,7 @@ import qualified Data.Set as Set
 import qualified AnnotatedGraph as AG
 import qualified Math.Vector2 as Vector2
 import Math.Vector2((^/))
--- import Math.Bezier(bezierNSamples)
+import Math.Bezier(bezierNSamples)
 
 import qualified Graphics.DrawingCombinators as Draw
 
@@ -30,8 +30,8 @@ onBoth f (x,y) = (f x, f y)
 
 renderEdge :: Int -> AG.VRDEdge -> Draw.Draw AG.Ids
 renderEdge jd vrdEdge = mconcat (map mkLine (zip ps (tail ps))) `mappend` firstCircle  where
-    --ps = bezierNSamples (AG.bezierSamplesE vrdEdge) (AG.pointsE vrdEdge)
-    ps = AG.pointsE vrdEdge
+    ps = bezierNSamples (AG.bezierSamplesE vrdEdge) (AG.pointsE vrdEdge)
+    --ps = AG.pointsE vrdEdge
     mkLine = fmap mkIds . uncurry Draw.line . onBoth (Vector2.getXY . scaleV)
     mkIds = const . Set.singleton $ AG.Id AG.Edge jd
     firstCircle = fmap mkIds 
