@@ -29,11 +29,16 @@ onBoth :: (a -> b) -> (a,a) -> (b, b)
 onBoth f (x,y) = (f x, f y)
 
 renderEdge :: Int -> AG.VRDEdge -> Draw.Draw AG.Ids
-renderEdge jd vrdEdge = mconcat (map mkLine (zip ps (tail ps))) where
+renderEdge jd vrdEdge = mconcat (map mkLine (zip ps (tail ps))) `mappend` firstCircle  where
     --ps = bezierNSamples (AG.bezierSamplesE vrdEdge) (AG.pointsE vrdEdge)
     ps = AG.pointsE vrdEdge
     mkLine = fmap mkIds . uncurry Draw.line . onBoth (Vector2.getXY . scaleV)
     mkIds = const . Set.singleton $ AG.Id AG.Edge jd
+    firstCircle = fmap mkIds 
+                  . Draw.translate (Vector2.getXY . scaleV . last $ ps) 
+                  . Draw.color (1,0,0,0.5) 
+                  . Draw.scale 0.02 0.02 
+                  $ Draw.circle
 
 
 
