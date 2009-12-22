@@ -41,25 +41,25 @@ instance Applicative Vector2 where
     pure x = Vector2 x x
     Vector2 f g <*> Vector2 x y = Vector2 (f x) (g y)
 
-vector2 :: RealFloat a => a -> a -> Vector2 a
+vector2 :: a -> a -> Vector2 a
 vector2 = Vector2 
 
-getX :: RealFloat a => Vector2 a -> a
+getX :: Vector2 a -> a
 getX (Vector2 x _) = x
 
-getY :: RealFloat a => Vector2 a -> a
+getY :: Vector2 a -> a
 getY (Vector2 _ y) = y
 
-getXY :: RealFloat a => Vector2 a -> (a, a)
+getXY :: Vector2 a -> (a, a)
 getXY (Vector2 x y) = (x, y)
 
-fromPolar :: RealFloat a => a -> a -> Vector2 a
+fromPolar :: Floating a => a -> a -> Vector2 a
 fromPolar rho theta = Vector2 (rho * cos theta) (rho * sin theta) 
 
-getRho :: RealFloat a => Vector2 a -> a
+getRho :: Floating a => Vector2 a -> a
 getRho (Vector2 x y) = sqrt (x * x + y * y)
 
-getManhatten :: RealFloat a => Vector2 a -> a
+getManhatten :: Num a => Vector2 a -> a
 getManhatten (Vector2 x y) = x + y
 
 getTheta :: RealFloat a => Vector2 a -> a
