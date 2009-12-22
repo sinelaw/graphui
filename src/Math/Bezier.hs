@@ -1,16 +1,14 @@
 module Math.Bezier where
 
 import Math.Vector2
+import Math.Binomial
 
+  
 -- Hitched from hps-0.1, Graphics.PS.Bezier --
 bezier4 :: (RealFloat a) => a 
         -> Vector2 a -> Vector2 a -> Vector2 a -> Vector2 a
         -> Vector2 a
-bezier4 mu v1 v2 v3 v4 = (a^3)*^v1 
-                         ^+^ (3*mu*a^2)*^v2 
-                         ^+^ (3*mu^2*a)*^v3 
-                         ^+^ (mu^3)*^v4
-    where a = 1 - mu
+bezier4 mu v1 v2 v3 v4 = foldr (^+^) zeroVector (zipWith (*^) (binomialPoly 3 (1-mu) mu) [v1,v2,v3,v4])
 --
        
        
