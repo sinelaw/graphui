@@ -39,6 +39,5 @@ autoLayout ag = AG.AG gr newVRN newVRE newVRG
         dotizedGr = GraphViz.dotizeGraph True gr
         newVRN = Graph.ufold convToVRN AG.vrNodeEmpty dotizedGr
         newVRG = set AG.lNeedsLayout False (AG.vrGraph ag)
-        convToVRN (_, node, (grvAttrs, _), _) vrNodes = 
-            IntMap.insert node (nodeAttrsToVRDN grvAttrs) vrNodes
+        convToVRN (_, node, (grvAttrs, _), _) = IntMap.insert node (nodeAttrsToVRDN grvAttrs)
 

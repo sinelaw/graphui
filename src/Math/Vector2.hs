@@ -32,7 +32,7 @@ import Data.Foldable
 data RealFloat a => Vector2 a = Vector2 !a !a deriving (Eq,Show,Ord)
 
 vector2 :: RealFloat a => a -> a -> Vector2 a
-vector2 x y = Vector2 x y
+vector2 = Vector2 
 
 vector2X :: RealFloat a => Vector2 a -> a
 vector2X (Vector2 x _) = x
@@ -74,7 +74,7 @@ a *^ (Vector2 x y) = Vector2 (a * x) (a * y)
 (Vector2 x y) ^/ a = Vector2 (x / a) (y / a)
 
 negateVector :: (RealFloat a) => Vector2 a -> Vector2 a
-negateVector (Vector2 x y) = (Vector2 (-x) (-y))
+negateVector (Vector2 x y) = Vector2 (-x) (-y)
 
 (^+^) :: (RealFloat a) => Vector2 a -> Vector2 a -> Vector2 a
 (Vector2 x1 y1) ^+^ (Vector2 x2 y2) = Vector2 (x1 + x2) (y1 + y2)

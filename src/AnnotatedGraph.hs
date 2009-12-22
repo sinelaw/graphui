@@ -21,7 +21,7 @@ type GraphStructure a b = PTGraph.Gr a b
 type Color = (Double, Double, Double, Double)
 
 newGrNode :: PTGraph.Gr a b -> Graph.Node
-newGrNode gr = head (Graph.newNodes 1 gr)
+newGrNode = head . Graph.newNodes 1
 
 -- newGrEdge :: PTGraph.Gr a b -> Graph.Edge
 -- newGrEdge gr = 1 + (foldr (\prev (i,label') -> max 0 (Graph.edges gr))
@@ -41,7 +41,7 @@ data Id = Id ElementType Int
 type Ids = Set.Set Id
 
 idIsElement :: ElementType -> Id -> Bool
-idIsElement et (Id et' n) = (et == et')
+idIsElement et (Id et' n) =  et == et'
 
 
 data Shape = Rectangle | Ellipse
@@ -97,7 +97,7 @@ setSelectedElements :: Set.Set Id -> AnnotatedGraph a b -> AnnotatedGraph a b
 setSelectedElements = set (lSelectedElements . lVrGraph)
 
 instance Show (AnnotatedGraph a b) where
-  show ag = ("(AG: vrNodes = " ++ (show (vrNodes ag)) ++ ")")
+  show ag = "(AG: vrNodes = " ++ show (vrNodes ag) ++ ")"
 
 empty :: AnnotatedGraph a b
 empty = AG { graph = Graph.empty, 
@@ -107,7 +107,7 @@ empty = AG { graph = Graph.empty,
            }
 
 newLNode :: a -> AnnotatedGraph a b -> Graph.LNode a
-newLNode label' ag = newGrLNode label' (graph ag)
+newLNode label' = newGrLNode label' . graph
 
 insLNode :: Graph.LNode a -> AnnotatedGraph a b -> AnnotatedGraph a b
 insLNode n ag = AG{ graph = (Graph.insNode n (graph ag)), 

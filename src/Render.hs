@@ -27,8 +27,8 @@ onBoth f (x,y) = (f x, f y)
 renderEdge :: Int -> AG.VRDEdge -> Draw.Draw AG.Ids
 renderEdge jd vrdEdge = mconcat (map mkLine (zip ps (tail ps))) where
     ps = bezierNSamples (AG.bezierSamplesE vrdEdge) (AG.pointsE vrdEdge)
-    mkLine = (fmap mkIds) . (uncurry Draw.line) . (onBoth Vector2.vector2XY)
-    mkIds = const . Set.singleton $ (AG.Id AG.Edge jd)
+    mkLine = fmap mkIds . uncurry Draw.line . onBoth Vector2.vector2XY
+    mkIds = const . Set.singleton $ AG.Id AG.Edge jd
 
 
 
@@ -40,4 +40,4 @@ box = Draw.scale 0.02 0.02
             [(1,1),(1,-1),(-1,-1),(-1,1)]
 
 nodeBox :: Int -> Draw.Draw AG.Ids
-nodeBox n = fmap (const . Set.singleton $ (AG.Id AG.Node n)) (Draw.color (0,0,1,0.5) box)
+nodeBox n = fmap (const . Set.singleton $ AG.Id AG.Node n) (Draw.color (0,0,1,0.5) box)
