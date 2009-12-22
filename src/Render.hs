@@ -45,4 +45,5 @@ box = Draw.scale 0.04 0.04
             [(1,1),(1,-1),(-1,-1),(-1,1)]
 
 nodeBox :: Int -> Draw.Draw AG.Ids
-nodeBox n = fmap (const . Set.singleton $ AG.Id AG.Node n) (Draw.color (0,0,1,0.5) box)
+nodeBox n = fmap (const . Set.singleton $ AG.Id AG.Node n) (Draw.color (c,1-c,1,0.5) box)
+    where c = fromIntegral ((100*n) `mod` 256) / 256
