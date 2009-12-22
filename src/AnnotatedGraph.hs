@@ -151,9 +151,8 @@ insLEdge eg@(_,_,(id',_)) ag = set lVrEdges newVREdges updatedGr
 insNewLEdge :: Int -> Int -> b -> AnnotatedGraph a b -> AnnotatedGraph a b
 insNewLEdge n1 n2 label' ag = insLEdge (newLEdge n1 n2 label' ag) ag
 
-connectNodes :: Ids -> b -> AnnotatedGraph a b -> AnnotatedGraph a b
-connectNodes nodeIds label' ag = foldr connect' (setNeedsLayout True ag) nodePairs
-    where nlist = Set.toList nodeIds
-          nodePairs = zip nlist (tail nlist)
+connectNodes :: [Id] -> b -> AnnotatedGraph a b -> AnnotatedGraph a b
+connectNodes nList label' ag = foldr connect' (setNeedsLayout True ag) nodePairs
+    where nodePairs = zip nList (tail nList)
           connect' (Id Node n1, Id Node n2) = insNewLEdge n1 n2 label'
           connect' _ = error "Expecting node IDs when connecting a new edge"

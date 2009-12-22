@@ -33,9 +33,9 @@ sense _ = do
     return (0, Just ev)
     
 actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Ids, Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) -> IO Bool
-actuate mayHaveChanged (needQuit, d, _, ag) = do
-    --print ag
-    --when (agEvent /= Yampa.NoEvent) (print . Yampa.fromEvent $ agEvent)
+actuate mayHaveChanged (needQuit, d, agEvent, ag) = do
+    print ag
+    when (agEvent /= Yampa.NoEvent) (print . Yampa.fromEvent $ agEvent)
     when (not needQuit && mayHaveChanged) redraw
     return needQuit
   where
@@ -119,12 +119,13 @@ eventToAG = proc (anGraphEvent, ag) -> do
                    Yampa.returnA -< resAG
 
 updatedSelectedElements :: AG.Ids -> AG.AnnotatedGraph a String -> AG.AnnotatedGraph a String
-updatedSelectedElements id' ag = if (Set.size nodes == 2) then connectedAg else updatedAg
+updatedSelectedElements id' ag = if (length nodesList == 2) then connectedAg else updatedAg
     where updatedAg = AG.setSelectedElements updatedSelected ag
-          nodes = Set.filter (AG.idIsElement AG.Node) updatedSelected
+          selectedList = Set.toList (getSelected ag) ++ Set.toList id'
+          nodesList = [nid | nid <- selectedList, AG.idIsElement AG.Node nid]
           updatedSelected = (Set.union id' (getSelected ag))
           getSelected = AG.selectedElements . AG.vrGraph 
-          connectedAg = AG.resetSelectedElements (AG.connectNodes nodes "new" updatedAg)
+          connectedAg = AG.resetSelectedElements (AG.connectNodes nodesList "new" updatedAg)
           
 
 procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b) (Draw.Draw AG.Ids)
