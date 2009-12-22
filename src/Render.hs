@@ -6,7 +6,8 @@ import qualified Data.Set as Set
 
 import qualified AnnotatedGraph as AG
 import qualified Math.Vector2 as Vector2
-import Math.Bezier(bezierNSamples)
+import Math.Vector2((^/))
+-- import Math.Bezier(bezierNSamples)
 
 import qualified Graphics.DrawingCombinators as Draw
 
@@ -18,10 +19,11 @@ renderAG (AG.AG _ vrNodes vrEdges _) = mconcat (renderedNodes ++ renderedEdges) 
 
 
 
-scaleV = (Vector2.^/ 500)
+scaleV :: RealFloat a => Vector2.Vector2 a -> Vector2.Vector2 a
+scaleV = (^/ 500)
 
 renderNode :: Int -> AG.VRDNode -> Draw.Draw AG.Ids
-renderNode n vrdNode = Draw.translate (Vector2.vector2XY . scaleV . AG.positionN $ vrdNode) (nodeBox n)
+renderNode n vrdNode = Draw.translate (Vector2.getXY . scaleV . AG.positionN $ vrdNode) (nodeBox n)
 
 onBoth :: (a -> b) -> (a,a) -> (b, b)
 onBoth f (x,y) = (f x, f y)
@@ -30,7 +32,7 @@ renderEdge :: Int -> AG.VRDEdge -> Draw.Draw AG.Ids
 renderEdge jd vrdEdge = mconcat (map mkLine (zip ps (tail ps))) where
     --ps = bezierNSamples (AG.bezierSamplesE vrdEdge) (AG.pointsE vrdEdge)
     ps = AG.pointsE vrdEdge
-    mkLine = fmap mkIds . uncurry Draw.line . onBoth (Vector2.vector2XY . scaleV)
+    mkLine = fmap mkIds . uncurry Draw.line . onBoth (Vector2.getXY . scaleV)
     mkIds = const . Set.singleton $ AG.Id AG.Edge jd
 
 

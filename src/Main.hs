@@ -23,12 +23,12 @@ initScreen :: IO ()
 initScreen = do
     SDL.init [SDL.InitTimer, SDL.InitVideo]
     -- resolution & color depth
-    SDL.setVideoMode resX resY 32 [SDL.OpenGL]
+    _ <- SDL.setVideoMode resX resY 32 [SDL.OpenGL]
     return ()
 
 
 sense :: Bool -> IO (Yampa.DTime, Maybe SDL.Event)
-sense canBlock = do
+sense _ = do
     ev <- SDL.waitEvent
     return (0, Just ev)
     
@@ -39,7 +39,7 @@ actuate mayHaveChanged (needQuit, d, agEvent, ag) = do
     when (not needQuit && mayHaveChanged) redraw
     return needQuit
   where
-    (x,y) = Vector2.vector2XY . AG.mousePos . AG.vrGraph $ ag
+    (x,y) = Vector2.getXY . AG.mousePos . AG.vrGraph $ ag
     cursor = (Draw.translate (convCoords (x) (y)) (Render.nodeBox 123))
     redraw = Draw.draw (cursor `mappend` d) >> SDL.glSwapBuffers
   

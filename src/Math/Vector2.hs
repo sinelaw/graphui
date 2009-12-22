@@ -17,8 +17,11 @@
 
 module Math.Vector2 where
 
+import Prelude hiding (negate)
+
 import Data.Monoid(Monoid(..))
 import Data.Foldable
+import Control.Applicative(Applicative(..), liftA2)
 
 ------------------------------------------------------------------------------
 -- 2D vector, constructors and selectors.
@@ -29,31 +32,56 @@ import Data.Foldable
 -- result really would be a 2d vector), the only thing causing trouble is the
 -- use of atan2 in vector2Theta. Maybe atan2 can be generalized?
 
-data RealFloat a => Vector2 a = Vector2 !a !a deriving (Eq,Show,Ord)
+data Vector2 a = Vector2 !a !a deriving (Eq,Show,Ord)
+
+instance Functor Vector2 where
+    fmap f (Vector2 x y) = Vector2 (f x) (f y)
+
+instance Applicative Vector2 where
+    pure x = Vector2 x x
+    Vector2 f g <*> Vector2 x y = Vector2 (f x) (g y)
 
 vector2 :: RealFloat a => a -> a -> Vector2 a
 vector2 = Vector2 
 
-vector2X :: RealFloat a => Vector2 a -> a
-vector2X (Vector2 x _) = x
+getX :: RealFloat a => Vector2 a -> a
+getX (Vector2 x _) = x
 
-vector2Y :: RealFloat a => Vector2 a -> a
-vector2Y (Vector2 _ y) = y
+getY :: RealFloat a => Vector2 a -> a
+getY (Vector2 _ y) = y
 
-vector2XY :: RealFloat a => Vector2 a -> (a, a)
-vector2XY (Vector2 x y) = (x, y)
+getXY :: RealFloat a => Vector2 a -> (a, a)
+getXY (Vector2 x y) = (x, y)
 
-vector2Polar :: RealFloat a => a -> a -> Vector2 a
-vector2Polar rho theta = Vector2 (rho * cos theta) (rho * sin theta) 
+fromPolar :: RealFloat a => a -> a -> Vector2 a
+fromPolar rho theta = Vector2 (rho * cos theta) (rho * sin theta) 
 
-vector2Rho :: RealFloat a => Vector2 a -> a
-vector2Rho (Vector2 x y) = sqrt (x * x + y * y)
+getRho :: RealFloat a => Vector2 a -> a
+getRho (Vector2 x y) = sqrt (x * x + y * y)
 
-vector2Theta :: RealFloat a => Vector2 a -> a
-vector2Theta (Vector2 x y) = atan2 y x
+getManhatten :: RealFloat a => Vector2 a -> a
+getManhatten (Vector2 x y) = x + y
 
-vector2RhoTheta :: RealFloat a => Vector2 a -> (a, a)
-vector2RhoTheta v = (vector2Rho v, vector2Theta v)
+getTheta :: RealFloat a => Vector2 a -> a
+getTheta (Vector2 x y) = atan2 y x
+
+getRhoTheta :: RealFloat a => Vector2 a -> (a, a)
+getRhoTheta v = (getRho v, getTheta v)
+
+------------------------------------------------------------------------------
+-- Semantic Editor Combinators, see: http://conal.net/blog/posts/semantic-editor-combinators/
+------------------------------------------------------------------------------
+
+type Endo a = a -> a
+
+atX :: Endo a -> Endo (Vector2 a)
+atX f (Vector2 x y) = Vector2 (f x) y
+
+atY :: Endo a -> Endo (Vector2 a)
+atY f (Vector2 x y) = Vector2 x (f y)
+
+atXY :: Endo (a, a) -> Endo (Vector2 a)
+atXY f (Vector2 x y) = uncurry Vector2 (f (x, y))
 
 ------------------------------------------------------------------------------
 -- Vector space instance
@@ -65,33 +93,35 @@ infix 7 `dot`
 infixl 6 ^+^, ^-^
 
 zeroVector :: (RealFloat a) => Vector2 a
-zeroVector = Vector2 0 0
+zeroVector = pure 0
 
 (*^) :: (RealFloat a) => a -> Vector2 a -> Vector2 a
-a *^ (Vector2 x y) = Vector2 (a * x) (a * y)
+a *^ v = fmap (a*) v
 
 (^/) :: (RealFloat a) => Vector2 a -> a -> Vector2 a
-(Vector2 x y) ^/ a = Vector2 (x / a) (y / a)
+v ^/ a = fmap (/a) v
 
-negateVector :: (RealFloat a) => Vector2 a -> Vector2 a
-negateVector (Vector2 x y) = Vector2 (-x) (-y)
+negate :: (RealFloat a) => Vector2 a -> Vector2 a
+negate = fmap (0-)
 
 (^+^) :: (RealFloat a) => Vector2 a -> Vector2 a -> Vector2 a
-(Vector2 x1 y1) ^+^ (Vector2 x2 y2) = Vector2 (x1 + x2) (y1 + y2)
+(^+^) = liftA2 (+)
 
 (^-^) :: (RealFloat a) => Vector2 a -> Vector2 a -> Vector2 a
-(Vector2 x1 y1) ^-^ (Vector2 x2 y2) = Vector2 (x1 - x2) (y1 - y2)
+(^-^) = liftA2 (-)
 
 dot :: (RealFloat a) => Vector2 a -> Vector2 a -> a
-(Vector2 x1 y1) `dot` (Vector2 x2 y2) = x1 * x2 + y1 * y2
+v1 `dot` v2 = getManhatten $ liftA2 (*) v1 v2
 
+vsum :: RealFloat a => [Vector2 a] -> Vector2 a
+vsum = foldl' (^+^) zeroVector
 
 ------------------------------------------------------------------------------
 -- Additional operations
 ------------------------------------------------------------------------------
 
-vector2Rotate :: RealFloat a => a -> Vector2 a -> Vector2 a
-vector2Rotate theta' v = vector2Polar (vector2Rho v) (vector2Theta v + theta')
+rotate :: RealFloat a => a -> Vector2 a -> Vector2 a
+rotate theta' v = fromPolar (getRho v) (getTheta v + theta')
 
 ------------------------------------------------------------------------------
 -- Monoids
@@ -110,6 +140,3 @@ inVSum2 f = inVSum . f . unVSum
 instance RealFloat a => Monoid (VSum a) where
     mempty = VSum zeroVector
     mappend = inVSum2 (^+^)
-
-vsum :: RealFloat a => [Vector2 a] -> Vector2 a
-vsum = foldl' (^+^) zeroVector
