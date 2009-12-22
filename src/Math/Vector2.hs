@@ -17,7 +17,7 @@
 
 module Math.Vector2 where
 
-
+import Data.Monoid(Monoid(..))
 
 ------------------------------------------------------------------------------
 -- 2D vector, constructors and selectors.
@@ -92,4 +92,20 @@ dot :: (RealFloat a) => Vector2 a -> Vector2 a -> a
 vector2Rotate :: RealFloat a => a -> Vector2 a -> Vector2 a
 vector2Rotate theta' v = vector2Polar (vector2Rho v) (vector2Theta v + theta')
 
+------------------------------------------------------------------------------
+-- Monoids
+------------------------------------------------------------------------------
 
+newtype VSum a = VSum { unVSum :: Vector2 a }
+    deriving (Eq,Show,Ord)
+
+inVSum :: (Vector2 a -> Vector2 b) -> VSum a -> VSum b
+inVSum f = VSum . f . unVSum
+
+inVSum2 :: (Vector2 a -> Vector2 b -> Vector2 c)
+        -> VSum a -> VSum b -> VSum c
+inVSum2 f = inVSum . f . unVSum
+
+instance RealFloat a => Monoid (VSum a) where
+    mempty = VSum zeroVector
+    mappend = inVSum2 (^+^)
