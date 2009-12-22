@@ -18,16 +18,19 @@ renderAG (AG.AG _ vrNodes vrEdges _) = mconcat (renderedNodes ++ renderedEdges) 
 
 
 
+scaleV = (Vector2.^/ 1000)
+
 renderNode :: Int -> AG.VRDNode -> Draw.Draw AG.Ids
-renderNode n vrdNode = Draw.translate (Vector2.vector2XY . (Vector2.^/ 1000) . AG.positionN $ vrdNode) (nodeBox n)
+renderNode n vrdNode = Draw.translate (Vector2.vector2XY . scaleV . AG.positionN $ vrdNode) (nodeBox n)
 
 onBoth :: (a -> b) -> (a,a) -> (b, b)
 onBoth f (x,y) = (f x, f y)
 
 renderEdge :: Int -> AG.VRDEdge -> Draw.Draw AG.Ids
 renderEdge jd vrdEdge = mconcat (map mkLine (zip ps (tail ps))) where
-    ps = bezierNSamples (AG.bezierSamplesE vrdEdge) (AG.pointsE vrdEdge)
-    mkLine = fmap mkIds . uncurry Draw.line . onBoth Vector2.vector2XY
+    --ps = bezierNSamples (AG.bezierSamplesE vrdEdge) (AG.pointsE vrdEdge)
+    ps = AG.pointsE vrdEdge
+    mkLine = fmap mkIds . uncurry Draw.line . onBoth (Vector2.vector2XY . scaleV)
     mkIds = const . Set.singleton $ AG.Id AG.Edge jd
 
 

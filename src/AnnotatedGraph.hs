@@ -27,7 +27,7 @@ newGrLNode :: a -> PTGraph.Gr a b -> Graph.LNode a
 newGrLNode label' gr = (newGrNode gr, label')
 
 newGrEdgeNum :: PTGraph.Gr a (Int, b) -> Int
-newGrEdgeNum gr = 1 + foldr (\(n1,n2,(i,label')) prev -> max prev i) 0 (Graph.labEdges gr)
+newGrEdgeNum gr = 1 + foldr (\(_,_,(i,_)) prev -> max prev i) 0 (Graph.labEdges gr)
 
 newGrLEdge :: Int -> Int -> b -> PTGraph.Gr a (Int, b) -> Graph.LEdge (Int, b)
 newGrLEdge n1 n2 label' gr = (n1, n2, (newGrEdgeNum gr, label'))
@@ -41,7 +41,7 @@ data Id = Id ElementType Int
 type Ids = Set.Set Id
 
 idIsElement :: ElementType -> Id -> Bool
-idIsElement et (Id et' n) =  et == et'
+idIsElement et (Id et' _) =  et == et'
 
 
 data Shape = Rectangle | Ellipse
@@ -79,7 +79,11 @@ type VREdge = IntMap.IntMap VRDEdge
 vrEdgeEmpty :: VREdge
 vrEdgeEmpty = IntMap.empty
 
-data VRGraph = VRGraph { mousePos :: Vector2.Vector2 Double, needsLayout :: Bool, selectedElements :: Ids }
+data VRGraph = VRGraph { mousePos :: Vector2.Vector2 Double, 
+                         needsLayout :: Bool, 
+                         selectedElements :: Ids, 
+                         widthG :: Double,
+                         heightG :: Double}
                deriving (Show)
   
 data AnnotatedGraph a b = AG { graph :: GraphStructure a (Int, b), vrNodes :: VRNode, vrEdges :: VREdge, vrGraph :: VRGraph}
@@ -87,6 +91,8 @@ data AnnotatedGraph a b = AG { graph :: GraphStructure a (Int, b), vrNodes :: VR
 -- Use fclabels to make nicer field accessors
 $(mkLabels [''AnnotatedGraph, ''VRNode, ''VREdge, ''VRGraph])
   
+lHeightG :: VRGraph :-> Double
+lWidthG :: VRGraph :-> Double
 lSelectedElements :: VRGraph :-> Ids
 lNeedsLayout :: VRGraph :-> Bool
 lMousePos :: VRGraph :-> Vector2.Vector2 Double
@@ -104,6 +110,9 @@ setMousePos = set (lMousePos . lVrGraph)
 setSelectedElements :: Ids -> AnnotatedGraph a b -> AnnotatedGraph a b
 setSelectedElements = set (lSelectedElements . lVrGraph)
 
+resetSelectedElements :: AnnotatedGraph a b -> AnnotatedGraph a b
+resetSelectedElements = setSelectedElements Set.empty
+
 instance Show (AnnotatedGraph a b) where
   show ag = "(AG: vrGraph = " ++ show (vrGraph ag)  
             ++ " ;\n\tvrNodes = " ++ show (vrNodes ag)  
@@ -116,7 +125,7 @@ empty :: AnnotatedGraph a b
 empty = AG { graph = Graph.empty, 
              vrNodes = IntMap.empty, 
              vrEdges = IntMap.empty, 
-             vrGraph = VRGraph{mousePos = Vector2.zeroVector, needsLayout = False, selectedElements = mempty } 
+             vrGraph = VRGraph{mousePos = Vector2.zeroVector, needsLayout = False, selectedElements = mempty, widthG = 0, heightG = 0 } 
            }
 
 newLNode :: a -> AnnotatedGraph a b -> Graph.LNode a
@@ -143,7 +152,7 @@ insNewLEdge :: Int -> Int -> b -> AnnotatedGraph a b -> AnnotatedGraph a b
 insNewLEdge n1 n2 label' ag = insLEdge (newLEdge n1 n2 label' ag) ag
 
 connectNodes :: Ids -> b -> AnnotatedGraph a b -> AnnotatedGraph a b
-connectNodes nodeIds label' ag = foldr connect' ag nodePairs
+connectNodes nodeIds label' ag = foldr connect' (setNeedsLayout True ag) nodePairs
     where nlist = Set.toList nodeIds
           nodePairs = zip nlist (tail nlist)
           connect' (Id Node n1, Id Node n2) = insNewLEdge n1 n2 label'

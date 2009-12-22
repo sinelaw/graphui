@@ -34,8 +34,8 @@ sense canBlock = do
     
 actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Ids, Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) -> IO Bool
 actuate mayHaveChanged (needQuit, d, agEvent, ag) = do
-    print ag
-    when (agEvent /= Yampa.NoEvent) (print . Yampa.fromEvent $ agEvent)
+    --print ag
+    --when (agEvent /= Yampa.NoEvent) (print . Yampa.fromEvent $ agEvent)
     when (not needQuit && mayHaveChanged) redraw
     return needQuit
   where
@@ -114,11 +114,12 @@ eventToAG = proc (anGraphEvent, ag) -> do
                    Yampa.returnA -< resAG
 
 updatedSelectedElements :: AG.Ids -> AG.AnnotatedGraph a String -> AG.AnnotatedGraph a String
-updatedSelectedElements id' ag = if (Set.size nodes == 2) then (AG.connectNodes nodes "new" updatedAg) else updatedAg
+updatedSelectedElements id' ag = if (Set.size nodes == 2) then connectedAg else updatedAg
     where updatedAg = AG.setSelectedElements updatedSelected ag
           nodes = Set.filter (AG.idIsElement AG.Node) updatedSelected
           updatedSelected = (Set.union id' (getSelected ag))
           getSelected = AG.selectedElements . AG.vrGraph 
+          connectedAg = AG.resetSelectedElements (AG.connectNodes nodes "new" updatedAg)
           
 
 procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b) (Draw.Draw AG.Ids)

@@ -2,6 +2,12 @@ Graphui
 --------
 An attempt to implement Graphui using some sort of FRP framework.
 
+Key Bindings
+============
+a           = Add New Nodes
+Mouse Click = Select Element.
+      (Connect two nodes by clicking on source and then on destination.)
+
 
 Problems / TODO:
 ================
