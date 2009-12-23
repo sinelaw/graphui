@@ -64,13 +64,16 @@ actuate trRef mayHaveChanged (needQuit, draw, _, ag) = do
   
     where
       redraw' = do --t' <- SDL.getTicks
-                   redraw
+                   if (AG.renderGraph . AG.vrGraph $ ag) 
+                     then redraw
+                     else redrawMouse
                    t'' <- SDL.getTicks
                    writeIORef trRef (fromIntegral t'')
 --                   print (t'' - t')
       mpos = Vector2.getXY . Render.coordsFromSDL . AG.mousePos . AG.vrGraph $ ag
       cursor = (Draw.translate mpos (Render.nodeBox 123))
-      redraw = {-# SCC "redraw" #-} Draw.draw (cursor `mappend` draw) >> SDL.glSwapBuffers
+      redraw      = {-# SCC "redraw" #-} Draw.draw (cursor `mappend` draw) >> SDL.glSwapBuffers
+      redrawMouse = {-# SCC "redraw'" #-} Draw.draw (cursor) >> SDL.glSwapBuffers
   
 
 
@@ -111,6 +114,7 @@ data AGEvent a b = AddNewNode a
                  -- | RemoveNode Int 
                  -- | AddEdge b Int Int 
                  | Quit 
+                 | ToggleRender
                  | AGElementSelected AG.Ids 
                  | MouseMotion Int Int
                    deriving (Eq, Show)
@@ -121,6 +125,7 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
                   let anGraphEvent = case (sdlEvent) of
                                        SDL.KeyDown ks -> case (SDL.symKey ks) of
                                                            SDL.SDLK_a -> Yampa.Event . AddNewNode $ "new"
+                                                           SDL.SDLK_r -> Yampa.Event ToggleRender
                                                            _          -> Yampa.NoEvent
                                        SDL.MouseButtonDown x y _ -> case Render.locateClick x y draw of
                                                                       Nothing -> Yampa.NoEvent
@@ -139,6 +144,7 @@ eventToAG = proc (anGraphEvent, ag) -> do
                                  Yampa.Event (MouseMotion x y) -> AG.setMousePos mouseVec ag
                                                                   where mouseVec = (Vector2.vector2 (fromIntegral x) (fromIntegral y))
                                  Yampa.Event (AGElementSelected id') -> updatedSelectedElements id' ag
+                                 Yampa.Event ToggleRender -> AG.toggleRender ag
                                  _ -> ag
                    Yampa.returnA -< resAG
 

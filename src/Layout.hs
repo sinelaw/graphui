@@ -4,6 +4,7 @@ import qualified Data.Graph.Inductive as Graph
 
 import qualified AnnotatedGraph as AG
 import qualified Math.Vector2 as Vector2
+import qualified Math.Bezier as Bezier
 
 import qualified Data.GraphViz as GraphViz
 import qualified Data.GraphViz.Attributes as GVAttrs
@@ -30,6 +31,7 @@ splineToVecs (GVAttrs.Spline s e ps) = map pointToVec points
           
 setPointsE :: [Vector2.Vector2 Double] -> AG.VRDEdge -> AG.VRDEdge
 setPointsE points vrde = vrde{AG.pointsE = points, 
+                              AG.bezierSamplesE = Bezier.bezierNSamples (AG.bezierSamplesNumE vrde) points,
                               AG.widthE=3} -- =3 is a debug thing
                          
 addVRDEAttr :: GVAttrs.Attribute -> AG.VRDEdge -> AG.VRDEdge
