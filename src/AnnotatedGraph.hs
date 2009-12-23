@@ -66,13 +66,15 @@ vrNodeEmpty = IntMap.empty
 
 data VRDEdge = VRDEEmpty | VRDEdge { widthE :: Double, 
                                      pointsE :: [Vector2.Vector2 Double], 
-                                     bezierSamplesE :: Int } 
+                                     bezierSamplesE  :: [Vector2.Vector2 Double], 
+                                     bezierSamplesNumE :: Int } 
                deriving (Show,Eq)
                         
 defaultVRDE :: VRDEdge
 defaultVRDE = VRDEdge { widthE = 0,
                         pointsE = replicate 4 Vector2.zeroVector,
-                        bezierSamplesE = 8 }
+                        bezierSamplesNumE = 8,
+                        bezierSamplesE = [] }
 
 type VREdge = IntMap.IntMap VRDEdge
 
@@ -81,6 +83,7 @@ vrEdgeEmpty = IntMap.empty
 
 data VRGraph = VRGraph { mousePos :: Vector2.Vector2 Double, 
                          needsLayout :: Bool, 
+                         renderGraph :: Bool,
                          selectedElements :: Ids, 
                          widthG :: Double,
                          heightG :: Double}
@@ -97,6 +100,7 @@ $(mkLabels [''AnnotatedGraph, ''VRNode, ''VREdge, ''VRGraph])
 lHeightG :: VRGraph :-> Double
 lWidthG :: VRGraph :-> Double
 lSelectedElements :: VRGraph :-> Ids
+lRenderGraph :: VRGraph :-> Bool
 lNeedsLayout :: VRGraph :-> Bool
 lMousePos :: VRGraph :-> Vector2.Vector2 Double
 lVrGraph :: AnnotatedGraph a b :-> VRGraph
@@ -104,6 +108,9 @@ lVrEdges :: AnnotatedGraph a b :-> VREdge
 lVrNodes :: AnnotatedGraph a b :-> VRNode                                        
 lGraph :: AnnotatedGraph a b :-> GraphStructure a (Int, b) 
                                       
+toggleRender :: AnnotatedGraph a b -> AnnotatedGraph a b
+toggleRender ag = set (lRenderGraph . lVrGraph) (not . get (lRenderGraph . lVrGraph) $ ag) ag
+
 setNeedsLayout :: Bool -> AnnotatedGraph a b -> AnnotatedGraph a b
 setNeedsLayout = set (lNeedsLayout . lVrGraph)
 
@@ -129,6 +136,7 @@ empty = AG { graph = Graph.empty,
              vrNodes = IntMap.empty, 
              vrEdges = IntMap.empty, 
              vrGraph = VRGraph{mousePos = Vector2.zeroVector, 
+                               renderGraph = False,
                                needsLayout = False, 
                                selectedElements = mempty, 
                                widthG = 0, 

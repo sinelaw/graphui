@@ -7,7 +7,6 @@ import qualified Data.Set as Set
 import qualified AnnotatedGraph as AG
 import qualified Math.Vector2 as Vector2
 import Math.Vector2((^/))
-import Math.Bezier(bezierNSamples)
 import qualified Graphics.DrawingCombinators as Draw
 
 import qualified System.IO.Unsafe -- to hide the click collision detection
