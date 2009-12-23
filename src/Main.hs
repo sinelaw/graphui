@@ -25,47 +25,35 @@ initScreen = do
 
 
 
-getEvents :: IORef Yampa.Time -> IO (Yampa.DTime, Maybe SDL.Event)
-getEvents tpRef = do
-  tp <- readIORef tpRef
-  ev <- SDL.pollEvent
-  SDL.delay 1
-  t <- SDL.getTicks
-  writeIORef tpRef (fromIntegral t)
+getEvents :: IO (Yampa.DTime, Maybe SDL.Event)
+getEvents = do
+    ev <- SDL.pollEvent
+    return (0, Just ev)
 
-  let res SDL.NoEvent = Just SDL.NoEvent
-      res ev' = Just ev'
-      dt = max 1 (fromIntegral t - tp)
-      
-  return (dt, res ev)
-    
-  
-sense :: IORef Yampa.Time -> Bool -> IO (Yampa.DTime, Maybe SDL.Event)
-sense tpRef _ = do
-  (dt, ev) <- getEvents tpRef
+
+sense :: Bool -> IO (Yampa.DTime, Maybe SDL.Event)
+sense _ = do
+  (dt, ev) <- getEvents
   return (dt, ev)
-    
-actuate :: (Show a, Eq a, Show b, Eq b) => IORef Yampa.Time -> Bool 
-           -> (Bool, 
-               Draw.Draw AG.Ids, 
-               Yampa.Event (AGEvent a b), 
-               AG.AnnotatedGraph a b) 
+
+actuate :: (Show a, Eq a, Show b, Eq b) => IORef Yampa.Time -> Bool
+           -> (Bool,
+               Draw.Draw AG.Ids,
+               Yampa.Event (AGEvent a b),
+               AG.AnnotatedGraph a b)
            -> IO Bool
 actuate trRef mayHaveChanged (needQuit, draw, _, ag) = do
   -- print ag
   -- when (Yampa.isEvent agEvent) (print . Yampa.fromEvent $ agEvent)
   tp <- readIORef trRef
-  t <- SDL.getTicks
-  
-  let dt = fromIntegral t - tp
-      
-  when (mayHaveChanged && (dt > 60)) (print dt >> writeIORef trRef (fromIntegral t) >> redraw)
+  t <- fromIntegral `fmap` SDL.getTicks
+  when (mayHaveChanged || ((t - tp) > 60)) (writeIORef trRef t >> redraw)
   return needQuit
     where
       mpos = Vector2.getXY . Render.coordsFromSDL . AG.mousePos . AG.vrGraph $ ag
       cursor = (Draw.translate mpos (Render.nodeBox 123))
       redraw = Draw.draw (cursor `mappend` draw) >> SDL.glSwapBuffers
-  
+
 initial :: IO SDL.Event
 initial = do
   initScreen
@@ -93,17 +81,17 @@ main :: IO ()
 main = do
   tpRef <- newIORef 0
   trRef <- newIORef 0
-  Yampa.reactimate initial (sense tpRef) (actuate trRef) processor
+  Yampa.reactimate initial sense (actuate trRef) processor
   putStrLn "Quitting"
   SDL.quit
   return ()
 
 
-data AGEvent a b = AddNewNode a 
-                 -- | RemoveNode Int 
-                 -- | AddEdge b Int Int 
-                 | Quit 
-                 | AGElementSelected AG.Ids 
+data AGEvent a b = AddNewNode a
+                 -- | RemoveNode Int
+                 -- | AddEdge b Int Int
+                 | Quit
+                 | AGElementSelected AG.Ids
                  | MouseMotion Int Int
                    deriving (Eq, Show)
 
@@ -114,7 +102,7 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
                                        SDL.KeyDown ks -> case (SDL.symKey ks) of
                                                            SDL.SDLK_a -> Yampa.Event . AddNewNode $ "new"
                                                            _          -> Yampa.NoEvent
-                                       SDL.MouseButtonDown x y _ -> case Render.locateClick x y draw of 
+                                       SDL.MouseButtonDown x y _ -> case Render.locateClick x y draw of
                                                                       Nothing -> Yampa.NoEvent
                                                                       Just id' -> Yampa.Event (AGElementSelected id')
                                        SDL.MouseMotion x y _ _ -> Yampa.Event (MouseMotion (fromIntegral x) (fromIntegral y))
@@ -124,10 +112,10 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
 
 
 eventToAG :: (Show a, Eq a) => Yampa.SF (Yampa.Event (AGEvent a String), AG.AnnotatedGraph a String) (AG.AnnotatedGraph a String)
-eventToAG = proc (anGraphEvent, ag) -> do 
+eventToAG = proc (anGraphEvent, ag) -> do
                    let resAG = case anGraphEvent of
                                  Yampa.NoEvent -> ag
-                                 Yampa.Event (AddNewNode x) -> AG.setNeedsLayout True (AG.insNewLNode x ag) 
+                                 Yampa.Event (AddNewNode x) -> AG.setNeedsLayout True (AG.insNewLNode x ag)
                                  Yampa.Event (MouseMotion x y) -> AG.setMousePos mouseVec ag
                                                                   where mouseVec = (Vector2.vector2 (fromIntegral x) (fromIntegral y))
                                  Yampa.Event (AGElementSelected id') -> updatedSelectedElements id' ag
@@ -140,9 +128,9 @@ updatedSelectedElements id' ag = if (length nodesList == 2) then connectedAg els
           selectedList = Set.toList (getSelected ag) ++ Set.toList id'
           nodesList = [nid | nid <- selectedList, AG.idIsElement AG.Node nid]
           updatedSelected = (Set.union id' (getSelected ag))
-          getSelected = AG.selectedElements . AG.vrGraph 
+          getSelected = AG.selectedElements . AG.vrGraph
           connectedAg = AG.resetSelectedElements (AG.connectNodes nodesList "new" updatedAg)
-          
+
 
 procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b) (Draw.Draw AG.Ids)
 procRenderAG = proc ag -> do
