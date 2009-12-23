@@ -4,12 +4,16 @@ import qualified Graphics.UI.SDL as SDL
 import qualified AnnotatedGraph as AG
 import qualified Render
 import qualified Layout
+import qualified Math.Vector2 as Vector2
 
 import qualified Data.Set as Set
 
 import qualified FRP.Yampa as Yampa
+
 import Control.Monad(when)
 import Data.Monoid(Monoid(..))
+
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 
 
 initScreen :: IO ()
@@ -20,24 +24,53 @@ initScreen = do
     return ()
 
 
-sense :: Bool -> IO (Yampa.DTime, Maybe SDL.Event)
-sense _ = do
-    ev <- SDL.waitEvent
-    return (0, Just ev)
+
+getEvents :: IORef Yampa.Time -> IO (Yampa.DTime, Maybe SDL.Event)
+getEvents tpRef = do
+  tp <- readIORef tpRef
+  ev <- SDL.waitEvent
+  t <- SDL.getTicks
+  writeIORef tpRef (fromIntegral t)
+
+  let res SDL.NoEvent = Nothing
+      res ev' = Just ev'
+      dt = max 1 (fromIntegral t - tp)
+      isMouseMotion (SDL.MouseMotion _ _ _ _) = True
+      isMouseMotion _ = False
+      
+  return (dt, res ev)
+--   if ((dt < 30) && (isMouseMotion ev))
+--      then return (dt, Nothing)
+--      else return (dt, res ev)
     
-actuate :: (Show a, Eq a, Show b, Eq b) => Bool -> (Bool, Draw.Draw AG.Ids, Yampa.Event (AGEvent a b), AG.AnnotatedGraph a b) -> IO Bool
-actuate mayHaveChanged (needQuit, d, agEvent, _) = do
---    print ag
-    --when (Yampa.isEvent agEvent) (print . Yampa.fromEvent $ agEvent)
-    when (mayHaveChanged && notMouseMotion agEvent && not needQuit) redraw
-    return needQuit
-  where
-    notMouseMotion (Yampa.Event (MouseMotion _ _)) = False
-    notMouseMotion _ = True
-    --(x,y) = Vector2.getXY . AG.mousePos . AG.vrGraph $ ag
-    --cursor = (Draw.translate (convCoords (x) (y)) (Render.nodeBox 123))
-    --redraw = Draw.draw (cursor `mappend` d) >> SDL.glSwapBuffers
-    redraw = Draw.draw d >> SDL.glSwapBuffers
+  
+sense :: IORef Yampa.Time -> Bool -> IO (Yampa.DTime, Maybe SDL.Event)
+sense tpRef _ = do
+  (dt, ev) <- getEvents tpRef
+  return (dt, ev)
+    
+actuate :: (Show a, Eq a, Show b, Eq b) => IORef Yampa.Time -> Bool 
+           -> (Bool, 
+               Draw.Draw AG.Ids, 
+               Yampa.Event (AGEvent a b), 
+               AG.AnnotatedGraph a b) 
+           -> IO Bool
+actuate trRef mayHaveChanged (needQuit, draw, agEvent, ag) = do
+  -- print ag
+  -- when (Yampa.isEvent agEvent) (print . Yampa.fromEvent $ agEvent)
+  tp <- readIORef trRef
+  t <- SDL.getTicks
+  let dt = fromIntegral t - tp
+      
+  when ((dt > 30) && mayHaveChanged && not needQuit) redraw
+  return needQuit
+    where
+      --notMouseMotion (Yampa.Event (MouseMotion _ _)) = False
+      --notMouseMotion _ = True
+      mpos = Vector2.getXY . Render.coordsFromSDL . AG.mousePos . AG.vrGraph $ ag
+      cursor = (Draw.translate mpos (Render.nodeBox 123))
+      redraw = Draw.draw (cursor `mappend` draw) >> SDL.glSwapBuffers
+      --redraw = Draw.draw d >> SDL.glSwapBuffers
   
 initial :: IO SDL.Event
 initial = do
@@ -64,7 +97,9 @@ processor = proc sdlEvent -> do
 
 main :: IO ()
 main = do
-  Yampa.reactimate initial sense actuate processor
+  tpRef <- newIORef 0
+  trRef <- newIORef 0
+  Yampa.reactimate initial (sense tpRef) (actuate trRef) processor
   putStrLn "Quitting"
   SDL.quit
   return ()
@@ -99,8 +134,8 @@ eventToAG = proc (anGraphEvent, ag) -> do
                    let resAG = case anGraphEvent of
                                  Yampa.NoEvent -> ag
                                  Yampa.Event (AddNewNode x) -> AG.setNeedsLayout True (AG.insNewLNode x ag) 
---                                  Yampa.Event (MouseMotion x y) -> AG.setMousePos mouseVec ag
---                                                                   where mouseVec = (Vector2.vector2 (fromIntegral x) (fromIntegral y))
+                                 Yampa.Event (MouseMotion x y) -> AG.setMousePos mouseVec ag
+                                                                  where mouseVec = (Vector2.vector2 (fromIntegral x) (fromIntegral y))
                                  Yampa.Event (AGElementSelected id') -> updatedSelectedElements id' ag
                                  _ -> ag
                    Yampa.returnA -< resAG

@@ -12,9 +12,16 @@ Mouse Click = Select Element.
 Problems / TODO:
 ================
 
-* How to 'sample' the display at sane intervals regardless of the event activity going on? (Yampa question)
-* Pass graph attributes (not just node and edge attributes) to and from dot.
+* Need to filter some of the MouseMotion events so that only some get through:
+  * Possibility: pass it through Yampa.Utilities.sample 
+    - this will make redundant mouse motion events every X no matter what the user did
 
+* Why does 'processor' get called repeatedly with the last event? (When using SDL.pollEvent)
+
+* How to 'sample' the display at sane intervals regardless of the event activity going on? (Yampa question)
+  * Use Yampa.Utilities.sample? For now I'm using an IORef to measure time since last render
+  
+* Pass graph attributes (not just node and edge attributes) to and from dot.
   * Then use the graph size to scale correctly the coordinates/sizes returned from dot onto the display size
   * Will require unsafePerformIO to cover up for the IO of the GraphViz.graphToGraph?
   * ivanm's suggestion: "would you be satisfied if I exposed the dotAttributes function from inside Data.GraphViz (or something similar)? That way, you can manually pass the DotGraph through dot, neato, etc. and then augment the graph by hand as well as having the new DotGraph available to get the top-level attributes (otherwise, there's the question of _which_ attributes to return; just those for the overall graph or also for clusters?) ?"
