@@ -11,12 +11,7 @@ Mouse Click = Select Element.
 
 Problems / TODO:
 ================
-
-* Need to filter some of the MouseMotion events so that only some get through:
-  * Possibility: pass it through Yampa.Utilities.sample 
-    - this will make redundant mouse motion events every X no matter what the user did
-
-* Why does 'processor' get called repeatedly with the last event? (When using SDL.pollEvent)
+* Update to use GL.GLdouble instead of Double whenever we pass stuff to Draw library. Then, use the version of the library that doesn't do any "convReal" - it uses GL.GLdouble instead of Double everywhere. This really improves performance.
 
 * How to 'sample' the display at sane intervals regardless of the event activity going on? (Yampa question)
   * Use Yampa.Utilities.sample? For now I'm using an IORef to measure time since last render
