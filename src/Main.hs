@@ -9,6 +9,7 @@ import qualified Math.Vector2 as Vector2
 import qualified Data.Set as Set
 
 import qualified FRP.Yampa as Yampa
+import qualified FRP.Yampa.Utilities as YampaUtils
 
 import Control.Monad(when)
 import Data.Monoid(Monoid(..))
@@ -21,6 +22,7 @@ initScreen = do
     SDL.init [SDL.InitTimer, SDL.InitVideo]
     -- resolution & color depth
     _ <- SDL.setVideoMode Render.resX Render.resY 32 [SDL.OpenGL]
+    Draw.draw Draw.empty
     return ()
 
 
@@ -32,12 +34,8 @@ getEvents tpRef = do
   SDL.delay 1
   t <- SDL.getTicks
   writeIORef tpRef (fromIntegral t)
-
-  let res SDL.NoEvent = Just SDL.NoEvent
-      res ev' = Just ev'
-      dt = max 1 (fromIntegral t - tp)
-      
-  return (dt, res ev)
+  let dt = max 1 (fromIntegral t - tp)
+  return (dt, Just ev)
     
   
 sense :: IORef Yampa.Time -> Bool -> IO (Yampa.DTime, Maybe SDL.Event)
@@ -45,7 +43,11 @@ sense tpRef _ = do
   (dt, ev) <- getEvents tpRef
   return (dt, ev)
     
-actuate :: (Show a, Eq a, Show b, Eq b) => IORef Yampa.Time -> Bool 
+
+
+actuate :: (Show a, Eq a, Show b, Eq b) => 
+           IORef Yampa.Time 
+           -> Bool 
            -> (Bool, 
                Draw.Draw AG.Ids, 
                Yampa.Event (AGEvent a b), 
@@ -56,16 +58,23 @@ actuate trRef mayHaveChanged (needQuit, draw, _, ag) = do
   -- when (Yampa.isEvent agEvent) (print . Yampa.fromEvent $ agEvent)
   tp <- readIORef trRef
   t <- SDL.getTicks
-  
   let dt = fromIntegral t - tp
-      
-  when (mayHaveChanged && (dt > 60)) (print dt >> writeIORef trRef (fromIntegral t) >> redraw)
+  when (mayHaveChanged && (dt > 60)) redraw'
+    
   return needQuit
+  
     where
+      redraw' = do t' <- SDL.getTicks
+                   redraw
+                   t'' <- SDL.getTicks
+                   writeIORef trRef (fromIntegral t'')
+                   print (t'' - t')
       mpos = Vector2.getXY . Render.coordsFromSDL . AG.mousePos . AG.vrGraph $ ag
       cursor = (Draw.translate mpos (Render.nodeBox 123))
       redraw = Draw.draw (cursor `mappend` draw) >> SDL.glSwapBuffers
   
+
+
 initial :: IO SDL.Event
 initial = do
   initScreen
