@@ -28,20 +28,16 @@ initScreen = do
 getEvents :: IORef Yampa.Time -> IO (Yampa.DTime, Maybe SDL.Event)
 getEvents tpRef = do
   tp <- readIORef tpRef
-  ev <- SDL.waitEvent
+  ev <- SDL.pollEvent
+  SDL.delay 1
   t <- SDL.getTicks
   writeIORef tpRef (fromIntegral t)
 
-  let res SDL.NoEvent = Nothing
+  let res SDL.NoEvent = Just SDL.NoEvent
       res ev' = Just ev'
       dt = max 1 (fromIntegral t - tp)
-      isMouseMotion (SDL.MouseMotion _ _ _ _) = True
-      isMouseMotion _ = False
       
   return (dt, res ev)
---   if ((dt < 30) && (isMouseMotion ev))
---      then return (dt, Nothing)
---      else return (dt, res ev)
     
   
 sense :: IORef Yampa.Time -> Bool -> IO (Yampa.DTime, Maybe SDL.Event)
@@ -55,22 +51,20 @@ actuate :: (Show a, Eq a, Show b, Eq b) => IORef Yampa.Time -> Bool
                Yampa.Event (AGEvent a b), 
                AG.AnnotatedGraph a b) 
            -> IO Bool
-actuate trRef mayHaveChanged (needQuit, draw, agEvent, ag) = do
+actuate trRef mayHaveChanged (needQuit, draw, _, ag) = do
   -- print ag
   -- when (Yampa.isEvent agEvent) (print . Yampa.fromEvent $ agEvent)
   tp <- readIORef trRef
   t <- SDL.getTicks
+  
   let dt = fromIntegral t - tp
       
-  when ((dt > 30) && mayHaveChanged && not needQuit) redraw
+  when (mayHaveChanged && (dt > 60)) (print dt >> writeIORef trRef (fromIntegral t) >> redraw)
   return needQuit
     where
-      --notMouseMotion (Yampa.Event (MouseMotion _ _)) = False
-      --notMouseMotion _ = True
       mpos = Vector2.getXY . Render.coordsFromSDL . AG.mousePos . AG.vrGraph $ ag
       cursor = (Draw.translate mpos (Render.nodeBox 123))
       redraw = Draw.draw (cursor `mappend` draw) >> SDL.glSwapBuffers
-      --redraw = Draw.draw d >> SDL.glSwapBuffers
   
 initial :: IO SDL.Event
 initial = do
