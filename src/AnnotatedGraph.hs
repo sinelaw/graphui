@@ -72,7 +72,7 @@ data VRDEdge = VRDEEmpty | VRDEdge { widthE :: Double,
 defaultVRDE :: VRDEdge
 defaultVRDE = VRDEdge { widthE = 0,
                         pointsE = replicate 4 Vector2.zeroVector,
-                        bezierSamplesE = 7 }
+                        bezierSamplesE = 8 }
 
 type VREdge = IntMap.IntMap VRDEdge
 

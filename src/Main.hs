@@ -21,38 +21,58 @@ initScreen = do
     SDL.init [SDL.InitTimer, SDL.InitVideo]
     -- resolution & color depth
     _ <- SDL.setVideoMode Render.resX Render.resY 32 [SDL.OpenGL]
+    Draw.draw Draw.empty
     return ()
 
 
 
-getEvents :: IO (Yampa.DTime, Maybe SDL.Event)
-getEvents = do
-    ev <- SDL.pollEvent
-    return (0, Just ev)
-
-
-sense :: Bool -> IO (Yampa.DTime, Maybe SDL.Event)
-sense _ = do
-  (dt, ev) <- getEvents
+getEvents :: IORef Yampa.Time -> IO (Yampa.DTime, Maybe SDL.Event)
+getEvents tpRef = do
+  tp <- readIORef tpRef
+  ev <- SDL.pollEvent
+  SDL.delay 1
+  t <- SDL.getTicks
+  writeIORef tpRef (fromIntegral t)
+  let dt = max 1 (fromIntegral t - tp)
+  return (dt, Just ev)
+    
+  
+sense :: IORef Yampa.Time -> Bool -> IO (Yampa.DTime, Maybe SDL.Event)
+sense tpRef _ = do
+  (dt, ev) <- getEvents tpRef
   return (dt, ev)
+    
 
-actuate :: (Show a, Eq a, Show b, Eq b) => IORef Yampa.Time -> Bool
-           -> (Bool,
-               Draw.Draw AG.Ids,
-               Yampa.Event (AGEvent a b),
-               AG.AnnotatedGraph a b)
+
+actuate :: (Show a, Eq a, Show b, Eq b) => 
+           IORef Yampa.Time 
+           -> Bool 
+           -> (Bool, 
+               Draw.Draw AG.Ids, 
+               Yampa.Event (AGEvent a b), 
+               AG.AnnotatedGraph a b) 
            -> IO Bool
 actuate trRef mayHaveChanged (needQuit, draw, _, ag) = do
   -- print ag
   -- when (Yampa.isEvent agEvent) (print . Yampa.fromEvent $ agEvent)
   tp <- readIORef trRef
-  t <- fromIntegral `fmap` SDL.getTicks
-  when (mayHaveChanged || ((t - tp) > 60)) (writeIORef trRef t >> redraw)
+  t <- fmap fromIntegral SDL.getTicks
+  let dt = t - tp
+  when (mayHaveChanged && (dt > 30)) redraw'
+    
   return needQuit
+  
     where
+      redraw' = do --t' <- SDL.getTicks
+                   redraw
+                   t'' <- SDL.getTicks
+                   writeIORef trRef (fromIntegral t'')
+--                   print (t'' - t')
       mpos = Vector2.getXY . Render.coordsFromSDL . AG.mousePos . AG.vrGraph $ ag
       cursor = (Draw.translate mpos (Render.nodeBox 123))
       redraw = Draw.draw (cursor `mappend` draw) >> SDL.glSwapBuffers
+  
+
 
 initial :: IO SDL.Event
 initial = do
@@ -81,17 +101,17 @@ main :: IO ()
 main = do
   tpRef <- newIORef 0
   trRef <- newIORef 0
-  Yampa.reactimate initial sense (actuate trRef) processor
+  Yampa.reactimate initial (sense tpRef) (actuate trRef) processor
   putStrLn "Quitting"
   SDL.quit
   return ()
 
 
-data AGEvent a b = AddNewNode a
-                 -- | RemoveNode Int
-                 -- | AddEdge b Int Int
-                 | Quit
-                 | AGElementSelected AG.Ids
+data AGEvent a b = AddNewNode a 
+                 -- | RemoveNode Int 
+                 -- | AddEdge b Int Int 
+                 | Quit 
+                 | AGElementSelected AG.Ids 
                  | MouseMotion Int Int
                    deriving (Eq, Show)
 
