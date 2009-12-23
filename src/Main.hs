@@ -70,7 +70,7 @@ actuate trRef mayHaveChanged (needQuit, draw, _, ag) = do
 --                   print (t'' - t')
       mpos = Vector2.getXY . Render.coordsFromSDL . AG.mousePos . AG.vrGraph $ ag
       cursor = (Draw.translate mpos (Render.nodeBox 123))
-      redraw = Draw.draw (cursor `mappend` draw) >> SDL.glSwapBuffers
+      redraw = {-# SCC "redraw" #-} Draw.draw (cursor `mappend` draw) >> SDL.glSwapBuffers
   
 
 
