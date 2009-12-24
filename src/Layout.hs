@@ -39,7 +39,7 @@ setPointsE points vrde = vrde{AG.pointsE = points,
                               AG.bezierSamplesNumE = newNumSamples,
                               AG.bezierSamplesE = Bezier.bezierNSamples newNumSamples points
                              }
-                         where newNumSamples = (length points)*3 -- todo fix this magic number
+                         where newNumSamples = (length points)*2 -- todo fix this magic number
                          
 addVRDEAttr :: GVAttrs.Attribute -> AG.VRDEdge -> AG.VRDEdge
 addVRDEAttr (GVAttrs.Pos (GVAttrs.SplinePos (s:_))) = setPointsE . splineToVecs $ s

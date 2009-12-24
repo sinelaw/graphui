@@ -79,7 +79,7 @@ actuate trRef mayHaveChanged (needQuit, draw, _, ag) = do
                    t'' <- SDL.getTicks
                    writeIORef trRef (fromIntegral t'')
       mpos = Vector2.getXY . Render.coordsFromSDL fResX fResY . AG.mousePos . AG.vrGraph $ ag
-      cursor = (Draw.translate mpos (Render.nodeBox 0.01 0.01 123))
+      cursor = (Draw.translate (Render.onBoth realToFrac mpos) (Render.nodeBox 0.01 0.01 123))
       redraw      = {-# SCC "redraw" #-} fastDraw (cursor `mappend` draw) >> SDL.glSwapBuffers
       redrawMouse = {-# SCC "redraw'" #-} fastDraw (cursor) >> SDL.glSwapBuffers
   

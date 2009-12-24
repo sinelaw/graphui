@@ -17,12 +17,12 @@ renderAG (AG.AG _ vrNodes vrEdges vrGraph) = Draw.scale s s drawAG
           renderedNodes = renderElements vrNodes (renderNode vrGraph)
           renderedEdges = renderElements vrEdges (renderEdge vrGraph)
           renderElements elMap renderFunc = map (uncurry renderFunc) (IntMap.toList elMap)
-          s = AG.zoomG vrGraph
+          s = realToFrac . AG.zoomG $ vrGraph
 
 
 
 renderNode :: AG.VRGraph -> Int -> AG.VRDNode -> Draw.Draw AG.Ids
-renderNode vrg id' vrdNode = Draw.translate (Vector2.getXY . coordsFromDOT gw gh . AG.positionN $ vrdNode) (nodeBox w h id')
+renderNode vrg id' vrdNode = Draw.translate (onBoth realToFrac . Vector2.getXY . coordsFromDOT gw gh . AG.positionN $ vrdNode) (nodeBox w h id')
     where gw = AG.widthG vrg
           gh = AG.heightG vrg
           w = AG.widthN vrdNode / gw
@@ -35,10 +35,10 @@ renderEdge :: AG.VRGraph -> Int -> AG.VRDEdge -> Draw.Draw AG.Ids
 renderEdge vrg id' vrdEdge = mconcat (map mkLine (zip ps (tail ps))) `mappend` firstCircle  
   where ps = AG.bezierSamplesE vrdEdge
         --ps = AG.pointsE vrdEdge
-        mkLine = fmap mkIds . uncurry Draw.line . onBoth (Vector2.getXY . coordsFromDOT w h)
+        mkLine = fmap mkIds . uncurry Draw.line . onBoth (onBoth realToFrac . Vector2.getXY . coordsFromDOT w h)
         mkIds = const . Set.singleton $ AG.Id AG.Edge id'
         firstCircle = fmap mkIds 
-                      . Draw.translate (Vector2.getXY . coordsFromDOT w h . last $ ps) 
+                      . Draw.translate (onBoth realToFrac . Vector2.getXY . coordsFromDOT w h . last $ ps) 
                       . Draw.color (1,0,0,0.5) 
                       . Draw.scale 0.02 0.02 
                       $ Draw.circle
@@ -54,7 +54,7 @@ square :: Draw.Draw ()
 square = Draw.convexPoly [(1,1),(1,-1),(-1,-1),(-1,1)]
 
 nodeBox :: Double -> Double -> Int -> Draw.Draw AG.Ids
-nodeBox w h n = fmap (const . Set.singleton $ AG.Id AG.Node n) (Draw.color (c,1-c,1,0.5) . Draw.scale w h $ Draw.circle)
+nodeBox w h n = fmap (const . Set.singleton $ AG.Id AG.Node n) (Draw.color (c,1-c,1,0.5) . Draw.scale (realToFrac w) (realToFrac h) $ Draw.circle)
     where c = fromIntegral ((100*n) `mod` 256) / 256
 
 
@@ -75,6 +75,6 @@ coordsFromDOT w h v = Vector2.vector2 (2*(x / w) - 1) (2*(y / h) - 1)
 locateClick :: (Integral a, Integral b) => Double -> Double -> a -> b -> Draw.Draw c -> Maybe c
 locateClick w h x y draw = unsafePerformIO $ (getIds (fromIntegral x) (fromIntegral y) draw)
     where getIds x' y' draw' =  do
-            let pos = (coordsFromSDL' w h x' y')
+            let pos = onBoth realToFrac (coordsFromSDL' w h x' y')
             res <- Draw.click pos draw'
             return res
