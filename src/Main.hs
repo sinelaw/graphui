@@ -15,12 +15,22 @@ import Data.Monoid(Monoid(..))
 
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 
+import qualified Graphics.Rendering.OpenGL.GL as GL
+
+resX :: Int
+resX = 640
+resY :: Int
+resY = 480
+fResX :: Double
+fResX = fromIntegral resX
+fResY :: Double 
+fResY = fromIntegral resY
 
 initScreen :: IO ()
 initScreen = do
     SDL.init [SDL.InitTimer, SDL.InitVideo]
     -- resolution & color depth
-    _ <- SDL.setVideoMode Render.resX Render.resY 32 [SDL.OpenGL]
+    _ <- SDL.setVideoMode resX resY 32 [SDL.OpenGL]
     Draw.draw Draw.empty
     return ()
 
@@ -53,8 +63,8 @@ actuate :: (Show a, Eq a, Show b, Eq b) =>
                AG.AnnotatedGraph a b) 
            -> IO Bool
 actuate trRef mayHaveChanged (needQuit, draw, _, ag) = do
-  -- print ag
-  -- when (Yampa.isEvent agEvent) (print . Yampa.fromEvent $ agEvent)
+  --print ag
+  --when (Yampa.isEvent agEvent) (print . Yampa.fromEvent $ agEvent)
   tp <- readIORef trRef
   t <- fmap fromIntegral SDL.getTicks
   let dt = t - tp
@@ -63,25 +73,34 @@ actuate trRef mayHaveChanged (needQuit, draw, _, ag) = do
   return needQuit
   
     where
-      redraw' = do --t' <- SDL.getTicks
-                   if (AG.renderGraph . AG.vrGraph $ ag) 
+      redraw' = do if (AG.renderGraph . AG.vrGraph $ ag) 
                      then redraw
                      else redrawMouse
                    t'' <- SDL.getTicks
                    writeIORef trRef (fromIntegral t'')
---                   print (t'' - t')
-      mpos = Vector2.getXY . Render.coordsFromSDL . AG.mousePos . AG.vrGraph $ ag
-      cursor = (Draw.translate mpos (Render.nodeBox 123))
-      redraw      = {-# SCC "redraw" #-} Draw.draw (cursor `mappend` draw) >> SDL.glSwapBuffers
-      redrawMouse = {-# SCC "redraw'" #-} Draw.draw (cursor) >> SDL.glSwapBuffers
+      mpos = Vector2.getXY . Render.coordsFromSDL fResX fResY . AG.mousePos . AG.vrGraph $ ag
+      cursor = (Draw.translate mpos (Render.nodeBox 0.01 0.01 123))
+      redraw      = {-# SCC "redraw" #-} fastDraw (cursor `mappend` draw) >> SDL.glSwapBuffers
+      redrawMouse = {-# SCC "redraw'" #-} fastDraw (cursor) >> SDL.glSwapBuffers
   
 
 
+fastDraw :: Draw.Draw a -> IO ()
+fastDraw d = do
+  GL.clear [GL.ColorBuffer]
+  Draw.runDrawing d
+    
 initial :: IO SDL.Event
 initial = do
   initScreen
-  ev <- SDL.waitEvent
-  return ev
+  Draw.init
+  GL.texture GL.Texture2D GL.$= GL.Enabled
+  GL.blend GL.$= GL.Enabled
+  GL.blendFunc GL.$= (GL.SrcAlpha, GL.OneMinusSrcAlpha)
+  GL.lineSmooth GL.$= GL.Enabled
+  GL.lineWidth GL.$= 1
+  GL.hint GL.LineSmooth GL.$= GL.Nicest
+  return SDL.NoEvent
 
 processor :: Yampa.SF SDL.Event (Bool,  -- shall we quit?
                                  Draw.Draw AG.Ids, -- The updated rendered screen
@@ -127,10 +146,12 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
                                                            SDL.SDLK_a -> Yampa.Event . AddNewNode $ "new"
                                                            SDL.SDLK_r -> Yampa.Event ToggleRender
                                                            _          -> Yampa.NoEvent
-                                       SDL.MouseButtonDown x y _ -> case Render.locateClick x y draw of
+                                       SDL.MouseButtonDown x y _ -> case Render.locateClick fResX fResY x y draw of
                                                                       Nothing -> Yampa.NoEvent
                                                                       Just id' -> Yampa.Event (AGElementSelected id')
-                                       SDL.MouseMotion x y _ _ -> Yampa.Event (MouseMotion (fromIntegral x) (fromIntegral y))
+                                       SDL.MouseMotion x y _ _ -> Yampa.Event (MouseMotion fx fy)
+                                           where fx = fromIntegral x
+                                                 fy = fromIntegral y
                                        SDL.Quit -> Yampa.Event Quit
                                        _ -> Yampa.NoEvent
                   Yampa.returnA -< anGraphEvent

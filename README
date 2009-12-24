@@ -11,6 +11,12 @@ Mouse Click = Select Element.
 
 Problems / TODO:
 ================
+* Use more samples on longer bezier lines
+
+* Fork dot generation to a different thread
+
+* Add width and antialiasing control to drawingcombinators
+
 * Update to use GL.GLdouble instead of Double whenever we pass stuff to Draw library. Then, use the version of the library that doesn't do any "convReal" - it uses GL.GLdouble instead of Double everywhere. This really improves performance.
 
 * How to 'sample' the display at sane intervals regardless of the event activity going on? (Yampa question)

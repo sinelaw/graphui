@@ -3,7 +3,7 @@ module AnnotatedGraph where
 
 
 import qualified Data.Graph.Inductive as Graph
-import qualified Data.Graph.Inductive.PatriciaTree as PTGraph
+--import qualified Data.Graph.Inductive.PatriciaTree as PTGraph
 
 import qualified Data.IntMap as IntMap
 import Data.Monoid
@@ -16,20 +16,20 @@ import Control.Category
 import Data.Record.Label
 --
 
-type GraphStructure a b = PTGraph.Gr a b
+type GraphStructure a b = Graph.Gr a b
 
 type Color = (Double, Double, Double, Double)
 
-newGrNode :: PTGraph.Gr a b -> Graph.Node
+newGrNode :: Graph.Gr a b -> Graph.Node
 newGrNode = head . Graph.newNodes 1
 
-newGrLNode :: a -> PTGraph.Gr a b -> Graph.LNode a
+newGrLNode :: a -> Graph.Gr a b -> Graph.LNode a
 newGrLNode label' gr = (newGrNode gr, label')
 
-newGrEdgeNum :: PTGraph.Gr a (Int, b) -> Int
+newGrEdgeNum :: Graph.Gr a (Int, b) -> Int
 newGrEdgeNum gr = 1 + foldr (\(_,_,(i,_)) prev -> max prev i) 0 (Graph.labEdges gr)
 
-newGrLEdge :: Int -> Int -> b -> PTGraph.Gr a (Int, b) -> Graph.LEdge (Int, b)
+newGrLEdge :: Int -> Int -> b -> Graph.Gr a (Int, b) -> Graph.LEdge (Int, b)
 newGrLEdge n1 n2 label' gr = (n1, n2, (newGrEdgeNum gr, label'))
 
 data ElementType = Node | Edge
@@ -89,6 +89,14 @@ data VRGraph = VRGraph { mousePos :: Vector2.Vector2 Double,
                          heightG :: Double}
                deriving (Show)
   
+defaultVRG :: VRGraph
+defaultVRG = VRGraph{mousePos = Vector2.zeroVector, 
+                     renderGraph = True,
+                     needsLayout = False, 
+                     selectedElements = mempty, 
+                     widthG = 1, 
+                     heightG = 1 } 
+             
 data AnnotatedGraph a b = AG { graph :: GraphStructure a (Int, b), 
                                vrNodes :: VRNode, 
                                vrEdges :: VREdge, 
@@ -134,13 +142,8 @@ instance Show (AnnotatedGraph a b) where
 empty :: AnnotatedGraph a b
 empty = AG { graph = Graph.empty, 
              vrNodes = IntMap.empty, 
-             vrEdges = IntMap.empty, 
-             vrGraph = VRGraph{mousePos = Vector2.zeroVector, 
-                               renderGraph = False,
-                               needsLayout = False, 
-                               selectedElements = mempty, 
-                               widthG = 0, 
-                               heightG = 0 } 
+             vrEdges = vrEdgeEmpty, 
+             vrGraph = defaultVRG
            }
 
 newLNode :: a -> AnnotatedGraph a b -> Graph.LNode a
