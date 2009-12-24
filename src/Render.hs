@@ -52,7 +52,7 @@ square :: Draw.Draw ()
 square = Draw.convexPoly [(1,1),(1,-1),(-1,-1),(-1,1)]
 
 nodeBox :: Double -> Double -> Int -> Draw.Draw AG.Ids
-nodeBox w h n = fmap (const . Set.singleton $ AG.Id AG.Node n) (Draw.color (c,1-c,1,0.5) . Draw.scale w h $ square)
+nodeBox w h n = fmap (const . Set.singleton $ AG.Id AG.Node n) (Draw.color (c,1-c,1,0.5) . Draw.scale w h $ Draw.circle)
     where c = fromIntegral ((100*n) `mod` 256) / 256
 
 
