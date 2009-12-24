@@ -86,7 +86,8 @@ data VRGraph = VRGraph { mousePos :: Vector2.Vector2 Double,
                          renderGraph :: Bool,
                          selectedElements :: Ids, 
                          widthG :: Double,
-                         heightG :: Double}
+                         heightG :: Double,
+                         zoomG :: Double}
                deriving (Show)
   
 defaultVRG :: VRGraph
@@ -95,7 +96,8 @@ defaultVRG = VRGraph{mousePos = Vector2.zeroVector,
                      needsLayout = False, 
                      selectedElements = mempty, 
                      widthG = 1, 
-                     heightG = 1 } 
+                     heightG = 1, 
+                     zoomG = 1} 
              
 data AnnotatedGraph a b = AG { graph :: GraphStructure a (Int, b), 
                                vrNodes :: VRNode, 
@@ -105,6 +107,8 @@ data AnnotatedGraph a b = AG { graph :: GraphStructure a (Int, b),
 -- Use fclabels to make nicer field accessors
 $(mkLabels [''AnnotatedGraph, ''VRNode, ''VREdge, ''VRGraph])
   
+  
+lZoomG :: VRGraph :-> Double  
 lHeightG :: VRGraph :-> Double
 lWidthG :: VRGraph :-> Double
 lSelectedElements :: VRGraph :-> Ids
@@ -116,6 +120,9 @@ lVrEdges :: AnnotatedGraph a b :-> VREdge
 lVrNodes :: AnnotatedGraph a b :-> VRNode                                        
 lGraph :: AnnotatedGraph a b :-> GraphStructure a (Int, b) 
                                       
+zoomBy :: Double -> AnnotatedGraph a b -> AnnotatedGraph a b
+zoomBy s ag = set (lZoomG . lVrGraph) (s * (get (lZoomG . lVrGraph) $ ag)) ag
+
 toggleRender :: AnnotatedGraph a b -> AnnotatedGraph a b
 toggleRender ag = set (lRenderGraph . lVrGraph) (not . get (lRenderGraph . lVrGraph) $ ag) ag
 

@@ -136,6 +136,8 @@ data AGEvent a b = AddNewNode a
                  | ToggleRender
                  | AGElementSelected AG.Ids 
                  | MouseMotion Int Int
+                 | ZoomOut
+                 | ZoomIn
                    deriving (Eq, Show)
 
 
@@ -145,6 +147,8 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
                                        SDL.KeyDown ks -> case (SDL.symKey ks) of
                                                            SDL.SDLK_a -> Yampa.Event . AddNewNode $ "new"
                                                            SDL.SDLK_r -> Yampa.Event ToggleRender
+                                                           SDL.SDLK_EQUALS -> Yampa.Event ZoomIn
+                                                           SDL.SDLK_MINUS  -> Yampa.Event ZoomOut
                                                            _          -> Yampa.NoEvent
                                        SDL.MouseButtonDown x y _ -> case Render.locateClick fResX fResY x y draw of
                                                                       Nothing -> Yampa.NoEvent
@@ -165,6 +169,8 @@ eventToAG = proc (anGraphEvent, ag) -> do
                                  Yampa.Event (MouseMotion x y) -> AG.setMousePos mouseVec ag
                                                                   where mouseVec = (Vector2.vector2 (fromIntegral x) (fromIntegral y))
                                  Yampa.Event (AGElementSelected id') -> updatedSelectedElements id' ag
+                                 Yampa.Event ZoomIn  -> AG.zoomBy 1.1 ag -- todo replace magic numbers
+                                 Yampa.Event ZoomOut -> AG.zoomBy 0.9 ag --
                                  Yampa.Event ToggleRender -> AG.toggleRender ag
                                  _ -> ag
                    Yampa.returnA -< resAG

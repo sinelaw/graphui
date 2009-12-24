@@ -12,10 +12,12 @@ import System.IO.Unsafe(unsafePerformIO) -- to hide the click collision detectio
 
 
 renderAG :: AG.AnnotatedGraph a b -> Draw.Draw AG.Ids
-renderAG (AG.AG _ vrNodes vrEdges vrGraph) = mconcat (renderedNodes ++ renderedEdges) where 
-    renderedNodes = renderElements vrNodes (renderNode vrGraph)
-    renderedEdges = renderElements vrEdges (renderEdge vrGraph)
-    renderElements elMap renderFunc = map (uncurry renderFunc) (IntMap.toList elMap)
+renderAG (AG.AG _ vrNodes vrEdges vrGraph) = Draw.scale s s drawAG
+    where drawAG = mconcat (renderedNodes ++ renderedEdges) 
+          renderedNodes = renderElements vrNodes (renderNode vrGraph)
+          renderedEdges = renderElements vrEdges (renderEdge vrGraph)
+          renderElements elMap renderFunc = map (uncurry renderFunc) (IntMap.toList elMap)
+          s = AG.zoomG vrGraph
 
 
 
