@@ -15,15 +15,18 @@ import Data.Monoid(Monoid(..))
 
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 
+import Graphics.Rendering.OpenGL.GL(GLdouble)
 import qualified Graphics.Rendering.OpenGL.GL as GL
+
+type FloatType = GLdouble
 
 resX :: Int
 resX = 640
 resY :: Int
 resY = 480
-fResX :: Double
+fResX :: (RealFloat a) => a
 fResX = fromIntegral resX
-fResY :: Double 
+fResY :: (RealFloat a) => a
 fResY = fromIntegral resY
 
 initScreen :: IO ()
@@ -54,13 +57,13 @@ sense tpRef _ = do
     
 
 
-actuate :: (Show a, Eq a, Show b, Eq b) => 
+actuate :: (Show a, Eq a, Show b, Eq b, RealFloat c) => 
            IORef Yampa.Time 
            -> Bool 
            -> (Bool, 
                Draw.Draw AG.Ids, 
                Yampa.Event (AGEvent a b), 
-               AG.AnnotatedGraph a b) 
+               AG.AnnotatedGraph a b c) 
            -> IO Bool
 actuate trRef mayHaveChanged (needQuit, draw, _, ag) = do
   --print ag
@@ -106,7 +109,7 @@ processor :: Yampa.SF SDL.Event (Bool,  -- shall we quit?
                                  Draw.Draw AG.Ids, -- The updated rendered screen
                                  Yampa.Event (AGEvent String String),  -- The event processed
                                  -- Debugging stuff:
-                                 AG.AnnotatedGraph String String -- the resulting annotated graph
+                                 AG.AnnotatedGraph String String FloatType -- the resulting annotated graph
                                 )
 processor = proc sdlEvent -> do
               rec agEvent <- sdlToAGEvents -< (sdlEvent, draw)
@@ -161,7 +164,8 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
                   Yampa.returnA -< anGraphEvent
 
 
-eventToAG :: (Show a, Eq a) => Yampa.SF (Yampa.Event (AGEvent a String), AG.AnnotatedGraph a String) (AG.AnnotatedGraph a String)
+eventToAG :: (Show a, Eq a, RealFloat c) => Yampa.SF (Yampa.Event (AGEvent a String), AG.AnnotatedGraph a String c) 
+                                                     (AG.AnnotatedGraph a String c)
 eventToAG = proc (anGraphEvent, ag) -> do
                    let resAG = case anGraphEvent of
                                  Yampa.NoEvent -> ag
@@ -175,7 +179,7 @@ eventToAG = proc (anGraphEvent, ag) -> do
                                  _ -> ag
                    Yampa.returnA -< resAG
 
-updatedSelectedElements :: AG.Ids -> AG.AnnotatedGraph a String -> AG.AnnotatedGraph a String
+updatedSelectedElements :: (RealFloat c) => AG.Ids -> AG.AnnotatedGraph a String c -> AG.AnnotatedGraph a String c
 updatedSelectedElements id' ag = if (length nodesList == 2) then connectedAg else updatedAg
     where updatedAg = AG.setSelectedElements updatedSelected ag
           selectedList = Set.toList (getSelected ag) ++ Set.toList id'
@@ -185,7 +189,7 @@ updatedSelectedElements id' ag = if (length nodesList == 2) then connectedAg els
           connectedAg = AG.resetSelectedElements (AG.connectNodes nodesList "new" updatedAg)
 
 
-procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b) (Draw.Draw AG.Ids)
+procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b FloatType) (Draw.Draw AG.Ids)
 procRenderAG = proc ag -> do
              Yampa.returnA -< (Render.renderAG ag)
 
@@ -194,7 +198,7 @@ guiEventHandler :: (Eq a, Eq b) => Yampa.SF (Yampa.Event (AGEvent a b)) Bool
 guiEventHandler = proc agEvent -> do
                     Yampa.returnA -< (agEvent == Yampa.Event Quit)
 
-layoutAG :: Yampa.SF (AG.AnnotatedGraph a b) (AG.AnnotatedGraph a b)
+layoutAG :: (RealFloat c) => Yampa.SF (AG.AnnotatedGraph a b c) (AG.AnnotatedGraph a b c)
 layoutAG = proc ag -> do
              let laidOutAG = case (AG.needsLayout . AG.vrGraph $ ag) of
                                True -> (Layout.autoLayout ag)
