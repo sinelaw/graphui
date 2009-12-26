@@ -42,8 +42,8 @@ initScreen = do
 getEvents :: IORef Yampa.Time -> IO (Yampa.DTime, Maybe SDL.Event)
 getEvents tpRef = do
   tp <- readIORef tpRef
-  ev <- SDL.pollEvent
-  SDL.delay 1
+  ev <- SDL.waitEvent
+--  SDL.delay 1
   t <- SDL.getTicks
   writeIORef tpRef (fromIntegral t)
   let dt = max 1 (fromIntegral t - tp)
@@ -58,33 +58,24 @@ sense tpRef _ = do
 
 
 actuate :: (Show a, Eq a, Show b, Eq b, RealFloat c) => 
-           IORef Yampa.Time 
-           -> Bool 
+           Bool 
            -> (Bool, 
                Draw.Draw AG.Ids, 
                Yampa.Event (AGEvent a b), 
                AG.AnnotatedGraph a b c) 
            -> IO Bool
-actuate trRef mayHaveChanged (needQuit, draw, _, ag) = do
-  --print ag
-  --when (Yampa.isEvent agEvent) (print . Yampa.fromEvent $ agEvent)
-  tp <- readIORef trRef
-  t <- fmap fromIntegral SDL.getTicks
-  let dt = t - tp
-  when (mayHaveChanged && (dt > 30)) redraw'
-    
+actuate mayHaveChanged (needQuit, draw, _, ag) = do
+  when mayHaveChanged redraw'
   return needQuit
   
     where
       redraw' = do if (AG.renderGraph . AG.vrGraph $ ag) 
                      then redraw
                      else redrawMouse
-                   t'' <- SDL.getTicks
-                   writeIORef trRef (fromIntegral t'')
       mpos = Vector2.getXY . Render.coordsFromSDL fResX fResY . AG.mousePos . AG.vrGraph $ ag
       cursor = (Draw.translate (Render.onBoth realToFrac mpos) (Render.nodeBox 0.01 0.01 123))
-      redraw      = {-# SCC "redraw" #-} fastDraw (cursor `mappend` draw) >> SDL.glSwapBuffers
-      redrawMouse = {-# SCC "redraw'" #-} fastDraw (cursor) >> SDL.glSwapBuffers
+      redraw      = fastDraw (cursor `mappend` draw) >> SDL.glSwapBuffers
+      redrawMouse = fastDraw (cursor) >> SDL.glSwapBuffers
   
 
 
@@ -125,8 +116,7 @@ processor = proc sdlEvent -> do
 main :: IO ()
 main = do
   tpRef <- newIORef 0
-  trRef <- newIORef 0
-  Yampa.reactimate initial (sense tpRef) (actuate trRef) processor
+  Yampa.reactimate initial (sense tpRef) actuate processor
   putStrLn "Quitting"
   SDL.quit
   return ()
