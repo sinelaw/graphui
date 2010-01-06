@@ -25,18 +25,20 @@ drawing = line (-1,-1) (1,1)
 main :: IO ()
 main = do
     initScreen
-    GL.texture GL.Texture2D GL.$= GL.Enabled
-    GL.blend GL.$= GL.Enabled
-    GL.blendFunc GL.$= (GL.SrcAlpha, GL.OneMinusSrcAlpha)
-    GL.lineSmooth GL.$= GL.Enabled
-    GL.lineWidth GL.$= 1.5
-    GL.hint GL.LineSmooth GL.$= GL.Nicest
+--    GL.texture GL.Texture2D GL.$= GL.Enabled
     render
     SDL.quit
     return ()
 
     where render = do
             GL.clear [GL.ColorBuffer]
+            GL.lineSmooth GL.$= GL.Enabled
+            GL.blend GL.$= GL.Enabled
+            GL.blendFunc GL.$= (GL.SrcAlpha, GL.OneMinusSrcAlpha)
+            GL.polygonSmooth GL.$= GL.Enabled
+            GL.multisample GL.$= GL.Enabled
+            GL.hint GL.LineSmooth GL.$= GL.Nicest
+            GL.lineWidth GL.$= 2
             drawing
             SDL.glSwapBuffers
             ev <- SDL.waitEvent

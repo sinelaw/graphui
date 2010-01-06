@@ -8,12 +8,12 @@ import qualified AnnotatedGraph as AG
 import qualified Math.Vector2 as Vector2
 import qualified Graphics.DrawingCombinators as Draw
 
-import Graphics.Rendering.OpenGL.GL(GLdouble)
 import System.IO.Unsafe(unsafePerformIO) -- to hide the click collision detection
 
 
-renderAG :: AG.AnnotatedGraph a b GLdouble -> Draw.Draw AG.Ids
-renderAG (AG.AG _ vrNodes vrEdges vrGraph) = Draw.scale s s drawAG
+
+renderAG :: AG.AnnotatedGraph a b Draw.R -> Draw.Image AG.Ids
+renderAG (AG.AG _ vrNodes vrEdges vrGraph) = Draw.scale s s Draw.%% drawAG
     where drawAG = mconcat (renderedNodes ++ renderedEdges) 
           renderedNodes = renderElements vrNodes (renderNode vrGraph)
           renderedEdges = renderElements vrEdges (renderEdge vrGraph)
@@ -22,8 +22,8 @@ renderAG (AG.AG _ vrNodes vrEdges vrGraph) = Draw.scale s s drawAG
 
 
 
-renderNode :: AG.VRGraph GLdouble -> Int -> AG.VRDNode GLdouble -> Draw.Draw AG.Ids
-renderNode vrg id' vrdNode = Draw.translate transxy (nodeBox w h id')
+renderNode :: AG.VRGraph Draw.R -> Int -> AG.VRDNode Draw.R -> Draw.Image AG.Ids
+renderNode vrg id' vrdNode = Draw.translate transxy Draw.%% (nodeBox w h id')
     where gw = AG.widthG vrg
           gh = AG.heightG vrg
           w = AG.widthN vrdNode / gw
@@ -33,17 +33,17 @@ renderNode vrg id' vrdNode = Draw.translate transxy (nodeBox w h id')
 onBoth :: (a -> b) -> (a,a) -> (b, b)
 onBoth f (x,y) = (f x, f y)
 
-renderEdge :: AG.VRGraph GLdouble -> Int -> AG.VRDEdge GLdouble -> Draw.Draw AG.Ids
+renderEdge :: AG.VRGraph Draw.R -> Int -> AG.VRDEdge Draw.R -> Draw.Image AG.Ids
 renderEdge vrg id' vrdEdge = mconcat (map mkLine (zip ps (tail ps))) `mappend` firstCircle  
   where ps = AG.bezierSamplesE vrdEdge
         --ps = AG.pointsE vrdEdge
         mkLine = fmap mkIds . uncurry Draw.line . onBoth (Vector2.getXY . coordsFromDOT w h)
         mkIds = const . Set.singleton $ AG.Id AG.Edge id'
         firstCircle = fmap mkIds 
-                      . Draw.translate (Vector2.getXY . coordsFromDOT w h . last $ ps) 
-                      . Draw.color (1,0,0,0.5) 
-                      . Draw.scale 0.02 0.02 
-                      $ Draw.circle
+                      . Draw.tint (Draw.Color 1 0 0 0.5) $
+                      (Draw.translate (Vector2.getXY . coordsFromDOT w h . last $ ps) 
+                      Draw.%% Draw.scale 0.02 0.02  
+                      Draw.%% Draw.circle)
 
         w = AG.widthG vrg
         h = AG.heightG vrg
@@ -52,12 +52,13 @@ renderEdge vrg id' vrdEdge = mconcat (map mkLine (zip ps (tail ps))) `mappend` f
 
 
 -- Temporary hacks
-square :: Draw.Draw ()
+square :: Draw.Image Any
 square = Draw.convexPoly [(1,1),(1,-1),(-1,-1),(-1,1)]
 
-nodeBox :: GLdouble -> GLdouble -> Int -> Draw.Draw AG.Ids
-nodeBox w h n = fmap (const . Set.singleton $ AG.Id AG.Node n) (Draw.color (c,1-c,1,0.5) . Draw.scale w h $ Draw.circle)
+nodeBox :: Draw.R -> Draw.R -> Int -> Draw.Image AG.Ids
+nodeBox w h n = fmap (const . Set.singleton $ AG.Id AG.Node n) (Draw.tint col ((Draw.scale w h) Draw.%% Draw.circle))
     where c = fromIntegral ((100*n) `mod` 256) / 256
+          col = (Draw.Color c (1-c) 1 0.5)
 
 
 
@@ -74,9 +75,9 @@ coordsFromDOT w h v = Vector2.vector2 (2*(x / w) - 1) (2*(y / h) - 1)
     where x = Vector2.getX v
           y = Vector2.getY v
   
-locateClick :: (Integral a, Integral b) => GLdouble -> GLdouble -> a -> b -> Draw.Draw c -> Maybe c
+locateClick :: (Show c, Integral a, Integral b) => Draw.R -> Draw.R -> a -> b -> Draw.Image c -> c
 locateClick w h x y draw = unsafePerformIO $ (getIds (fromIntegral x) (fromIntegral y) draw)
     where getIds x' y' draw' =  do
             let pos = coordsFromSDL' w h x' y'
-            res <- Draw.click pos draw'
+            res <- Draw.sample pos draw'
             return res

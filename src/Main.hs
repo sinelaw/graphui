@@ -21,9 +21,9 @@ import qualified Graphics.Rendering.OpenGL.GL as GL
 type FloatType = GLdouble
 
 resX :: Int
-resX = 640
+resX = 600
 resY :: Int
-resY = 480
+resY = 600
 fResX :: (RealFloat a) => a
 fResX = fromIntegral resX
 fResY :: (RealFloat a) => a
@@ -33,8 +33,8 @@ initScreen :: IO ()
 initScreen = do
     SDL.init [SDL.InitTimer, SDL.InitVideo]
     -- resolution & color depth
-    _ <- SDL.setVideoMode resX resY 32 [SDL.OpenGL]
-    Draw.draw Draw.empty
+    SDL.setVideoMode resX resY 32 [SDL.OpenGL]
+    Draw.init
     return ()
 
 
@@ -60,7 +60,7 @@ sense tpRef _ = do
 actuate :: (Show a, Eq a, Show b, Eq b, RealFloat c) => 
            Bool 
            -> (Bool, 
-               Draw.Draw AG.Ids, 
+               Draw.Image AG.Ids, 
                Yampa.Event (AGEvent a b), 
                AG.AnnotatedGraph a b c) 
            -> IO Bool
@@ -73,31 +73,31 @@ actuate mayHaveChanged (needQuit, draw, _, ag) = do
                      then redraw
                      else redrawMouse
       mpos = Vector2.getXY . Render.coordsFromSDL fResX fResY . AG.mousePos . AG.vrGraph $ ag
-      cursor = (Draw.translate (Render.onBoth realToFrac mpos) (Render.nodeBox 0.01 0.01 123))
-      redraw      = fastDraw (cursor `mappend` draw) >> SDL.glSwapBuffers
+      cursor = (Draw.translate (Render.onBoth realToFrac mpos) Draw.%% (Render.nodeBox 0.05 0.05 123))
+      redraw      = fastDraw (draw `mappend` cursor) >> SDL.glSwapBuffers
       redrawMouse = fastDraw (cursor) >> SDL.glSwapBuffers
   
 
 
-fastDraw :: Draw.Draw a -> IO ()
+fastDraw :: Draw.Image a -> IO ()
 fastDraw d = do
   GL.clear [GL.ColorBuffer]
-  Draw.runDrawing d
+  Draw.render d
     
 initial :: IO SDL.Event
 initial = do
   initScreen
-  Draw.init
   GL.texture GL.Texture2D GL.$= GL.Enabled
   GL.blend GL.$= GL.Enabled
   GL.blendFunc GL.$= (GL.SrcAlpha, GL.OneMinusSrcAlpha)
+  GL.polygonSmooth GL.$= GL.Enabled
   GL.lineSmooth GL.$= GL.Enabled
-  GL.lineWidth GL.$= 1
-  GL.hint GL.LineSmooth GL.$= GL.Nicest
+  GL.lineWidth GL.$= 1.5
+  GL.hint GL.LineSmooth GL.$= GL.DontCare
   return SDL.NoEvent
 
 processor :: Yampa.SF SDL.Event (Bool,  -- shall we quit?
-                                 Draw.Draw AG.Ids, -- The updated rendered screen
+                                 Draw.Image AG.Ids, -- The updated rendered screen
                                  Yampa.Event (AGEvent String String),  -- The event processed
                                  -- Debugging stuff:
                                  AG.AnnotatedGraph String String FloatType -- the resulting annotated graph
@@ -134,7 +134,7 @@ data AGEvent a b = AddNewNode a
                    deriving (Eq, Show)
 
 
-sdlToAGEvents :: Yampa.SF (SDL.Event, Draw.Draw AG.Ids) (Yampa.Event (AGEvent String String))
+sdlToAGEvents :: Yampa.SF (SDL.Event, Draw.Image AG.Ids) (Yampa.Event (AGEvent String String))
 sdlToAGEvents = proc (sdlEvent, draw) -> do
                   let anGraphEvent = case (sdlEvent) of
                                        SDL.KeyDown ks -> case (SDL.symKey ks) of
@@ -143,9 +143,8 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
                                                            SDL.SDLK_EQUALS -> Yampa.Event ZoomIn
                                                            SDL.SDLK_MINUS  -> Yampa.Event ZoomOut
                                                            _          -> Yampa.NoEvent
-                                       SDL.MouseButtonDown x y _ -> case Render.locateClick fResX fResY x y draw of
-                                                                      Nothing -> Yampa.NoEvent
-                                                                      Just id' -> Yampa.Event (AGElementSelected id')
+                                       SDL.MouseButtonDown x y _ -> let id' = Render.locateClick fResX fResY x y draw
+                                                                    in Yampa.Event (AGElementSelected id')
                                        SDL.MouseMotion x y _ _ -> Yampa.Event (MouseMotion fx fy)
                                            where fx = fromIntegral x
                                                  fy = fromIntegral y
@@ -179,7 +178,7 @@ updatedSelectedElements id' ag = if (length nodesList == 2) then connectedAg els
           connectedAg = AG.resetSelectedElements (AG.connectNodes nodesList "new" updatedAg)
 
 
-procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b FloatType) (Draw.Draw AG.Ids)
+procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b FloatType) (Draw.Image AG.Ids)
 procRenderAG = proc ag -> do
              Yampa.returnA -< (Render.renderAG ag)
 
