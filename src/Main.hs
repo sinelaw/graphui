@@ -1,3 +1,5 @@
+{-# LANGUAGE Arrows #-}
+
 import qualified Graphics.DrawingCombinators as Draw
 import qualified Graphics.UI.SDL as SDL
 
@@ -17,6 +19,7 @@ import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 
 import Graphics.Rendering.OpenGL.GL(GLdouble)
 import qualified Graphics.Rendering.OpenGL.GL as GL
+
 
 type FloatType = GLdouble
 
@@ -69,13 +72,13 @@ actuate mayHaveChanged (needQuit, draw, _, ag) = do
   return needQuit
   
     where
-      redraw' = do if (AG.renderGraph . AG.vrGraph $ ag) 
-                     then redraw
-                     else redrawMouse
+      redraw' = if AG.renderGraph . AG.vrGraph $ ag
+                then redraw
+                else redrawMouse
       mpos = Vector2.getXY . Render.coordsFromSDL fResX fResY . AG.mousePos . AG.vrGraph $ ag
-      cursor = (Draw.translate (Render.onBoth realToFrac mpos) Draw.%% (Render.nodeBox 0.05 0.05 123))
+      cursor = Draw.translate (Render.onBoth realToFrac mpos) Draw.%% Render.nodeBox 0.05 0.05 123
       redraw      = fastDraw (draw `mappend` cursor) >> SDL.glSwapBuffers
-      redrawMouse = fastDraw (cursor) >> SDL.glSwapBuffers
+      redrawMouse = fastDraw cursor >> SDL.glSwapBuffers
   
 
 
@@ -104,14 +107,21 @@ processor :: Yampa.SF SDL.Event (Bool,  -- shall we quit?
                                 )
 processor = proc sdlEvent -> do
               rec agEvent <- sdlToAGEvents -< (sdlEvent, draw)
-                  ag <- eventToAG -< (agEvent, preAg)
+                  ag <- eventToAG' -< agEvent
                   -- todo use accumHold or variants?
-                  laidOutAg <- layoutAG -< ag
-                  preAg <- agIPre -< laidOutAg
-                  draw <- procRenderAG -< preAg
+                  draw' <- procRenderAG -< ag
+                  draw <- drawPre -< draw'
               needQuit <- guiEventHandler -< agEvent
-              Yampa.returnA -< (needQuit, draw, agEvent, laidOutAg)
-            where agIPre = Yampa.iPre AG.empty
+              Yampa.returnA -< (needQuit, draw, agEvent, ag)
+            where eventToAG' = sscanPrim' eventToAG AG.empty
+                  drawPre = Yampa.iPre mempty
+
+sscanPrim' :: (b -> a -> Maybe b) -> b -> Yampa.SF a b
+sscanPrim' f b_init = Yampa.sscanPrim f' b_init b_init
+    -- changes Just x into Just (x, x)
+    where f' b a = case (f b a) of
+            Nothing -> Nothing
+            Just x -> Just (x,x)
 
 main :: IO ()
 main = do
@@ -136,7 +146,7 @@ data AGEvent a b = AddNewNode a
 
 sdlToAGEvents :: Yampa.SF (SDL.Event, Draw.Image AG.Ids) (Yampa.Event (AGEvent String String))
 sdlToAGEvents = proc (sdlEvent, draw) -> do
-                  let anGraphEvent = case (sdlEvent) of
+                  let anGraphEvent = case sdlEvent of
                                        SDL.KeyDown ks -> case (SDL.symKey ks) of
                                                            SDL.SDLK_a -> Yampa.Event . AddNewNode $ "new"
                                                            SDL.SDLK_r -> Yampa.Event ToggleRender
@@ -153,27 +163,30 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
                   Yampa.returnA -< anGraphEvent
 
 
-eventToAG :: (Show a, Eq a, RealFloat c) => Yampa.SF (Yampa.Event (AGEvent a String), AG.AnnotatedGraph a String c) 
-                                                     (AG.AnnotatedGraph a String c)
-eventToAG = proc (anGraphEvent, ag) -> do
-                   let resAG = case anGraphEvent of
-                                 Yampa.NoEvent -> ag
-                                 Yampa.Event (AddNewNode x) -> AG.setNeedsLayout True (AG.insNewLNode x ag)
-                                 Yampa.Event (MouseMotion x y) -> AG.setMousePos mouseVec ag
-                                                                  where mouseVec = (Vector2.vector2 (fromIntegral x) (fromIntegral y))
-                                 Yampa.Event (AGElementSelected id') -> updatedSelectedElements id' ag
-                                 Yampa.Event ZoomIn  -> AG.zoomBy 1.1 ag -- todo replace magic numbers
-                                 Yampa.Event ZoomOut -> AG.zoomBy 0.9 ag --
-                                 Yampa.Event ToggleRender -> AG.toggleRender ag
-                                 _ -> ag
-                   Yampa.returnA -< resAG
+eventToAG :: (Show a, Eq a, RealFloat c) => AG.AnnotatedGraph a String c -> Yampa.Event (AGEvent a String)
+                                            -> Maybe (AG.AnnotatedGraph a String c)
+eventToAG ag (Yampa.Event (AddNewNode x)) = Just (Layout.autoLayout (AG.insNewLNode x ag))
+eventToAG ag (Yampa.Event (MouseMotion x y)) = Just (AG.setMousePos mouseVec ag)
+    where mouseVec = Vector2.vector2 (fromIntegral x) (fromIntegral y)
+eventToAG ag (Yampa.Event (AGElementSelected id')) = Just (Layout.layoutIfNeeded (updatedSelectedElements id' ag))
+ -- todo replace magic numbers
+eventToAG ag (Yampa.Event ZoomIn ) = Just (AG.zoomBy 1.1 ag)
+eventToAG ag (Yampa.Event ZoomOut) = Just (AG.zoomBy 0.9 ag)
+eventToAG ag (Yampa.Event ToggleRender) = Just (AG.toggleRender ag)
+eventToAG _ _ = Nothing
+
+-- eventToAG' :: (Show a, Eq a, RealFloat c) => Yampa.SF (Yampa.Event (AGEvent a String), AG.AnnotatedGraph a String c)
+--                                                       (AG.AnnotatedGraph a String c)
+-- eventToAG' = proc (ag, ev) -> do
+--                let newAG = (flip eventToAG) ag ev
+--                Yampa.returnA -< newAG
 
 updatedSelectedElements :: (RealFloat c) => AG.Ids -> AG.AnnotatedGraph a String c -> AG.AnnotatedGraph a String c
-updatedSelectedElements id' ag = if (length nodesList == 2) then connectedAg else updatedAg
+updatedSelectedElements id' ag = if length nodesList == 2 then connectedAg else updatedAg
     where updatedAg = AG.setSelectedElements updatedSelected ag
           selectedList = Set.toList (getSelected ag) ++ Set.toList id'
           nodesList = [nid | nid <- selectedList, AG.idIsElement AG.Node nid]
-          updatedSelected = (Set.union id' (getSelected ag))
+          updatedSelected = Set.union id' (getSelected ag)
           getSelected = AG.selectedElements . AG.vrGraph
           connectedAg = AG.resetSelectedElements (AG.connectNodes nodesList "new" updatedAg)
 
@@ -187,9 +200,7 @@ guiEventHandler :: (Eq a, Eq b) => Yampa.SF (Yampa.Event (AGEvent a b)) Bool
 guiEventHandler = proc agEvent -> do
                     Yampa.returnA -< (agEvent == Yampa.Event Quit)
 
-layoutAG :: (RealFloat c) => Yampa.SF (AG.AnnotatedGraph a b c) (AG.AnnotatedGraph a b c)
-layoutAG = proc ag -> do
-             let laidOutAG = case (AG.needsLayout . AG.vrGraph $ ag) of
-                               True -> (Layout.autoLayout ag)
-                               False -> ag
-             Yampa.returnA -< laidOutAG
+
+-- interpolate :: (a -> a -> t -> a) -> Yampa.SF (Yampa.Event a) a
+-- interpolate interpF = proc ag -> do
+--                         let 

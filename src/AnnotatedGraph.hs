@@ -121,7 +121,7 @@ lVrNodes :: AnnotatedGraph a b c :-> VRNode c
 lGraph :: AnnotatedGraph a b c :-> GraphStructure a (Int, b) 
                                       
 zoomBy :: (Num c) => c -> AnnotatedGraph a b c -> AnnotatedGraph a b c
-zoomBy s ag = set (lZoomG . lVrGraph) (s * (get (lZoomG . lVrGraph) $ ag)) ag
+zoomBy s ag = set (lZoomG . lVrGraph) (s * (get (lZoomG . lVrGraph) ag)) ag
 
 toggleRender :: AnnotatedGraph a b c -> AnnotatedGraph a b c
 toggleRender ag = set (lRenderGraph . lVrGraph) (not . get (lRenderGraph . lVrGraph) $ ag) ag

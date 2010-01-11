@@ -18,12 +18,12 @@ renderAG (AG.AG _ vrNodes vrEdges vrGraph) = Draw.scale s s Draw.%% drawAG
           renderedNodes = renderElements vrNodes (renderNode vrGraph)
           renderedEdges = renderElements vrEdges (renderEdge vrGraph)
           renderElements elMap renderFunc = map (uncurry renderFunc) (IntMap.toList elMap)
-          s = AG.zoomG $ vrGraph
+          s = AG.zoomG vrGraph
 
 
 
 renderNode :: AG.VRGraph Draw.R -> Int -> AG.VRDNode Draw.R -> Draw.Image AG.Ids
-renderNode vrg id' vrdNode = Draw.translate transxy Draw.%% (nodeBox w h id')
+renderNode vrg id' vrdNode = Draw.translate transxy Draw.%% nodeBox w h id'
     where gw = AG.widthG vrg
           gh = AG.heightG vrg
           w = AG.widthN vrdNode / gw
@@ -35,7 +35,10 @@ onBoth f (x,y) = (f x, f y)
 
 renderEdge :: AG.VRGraph Draw.R -> Int -> AG.VRDEdge Draw.R -> Draw.Image AG.Ids
 renderEdge vrg id' vrdEdge = mconcat (map mkLine (zip ps (tail ps))) `mappend` firstCircle  
-  where ps = AG.bezierSamplesE vrdEdge
+  where ps' = AG.bezierSamplesE vrdEdge
+        ps = case length ps' of
+          0 -> error ("Must get a list of points to draw an edge. Got: " ++ show((vrg, id', vrdEdge)))
+          _ -> ps'
         --ps = AG.pointsE vrdEdge
         mkLine = fmap mkIds . uncurry Draw.line . onBoth (Vector2.getXY . coordsFromDOT w h)
         mkIds = const . Set.singleton $ AG.Id AG.Edge id'
@@ -56,9 +59,9 @@ square :: Draw.Image Any
 square = Draw.convexPoly [(1,1),(1,-1),(-1,-1),(-1,1)]
 
 nodeBox :: Draw.R -> Draw.R -> Int -> Draw.Image AG.Ids
-nodeBox w h n = fmap (const . Set.singleton $ AG.Id AG.Node n) (Draw.tint col ((Draw.scale w h) Draw.%% Draw.circle))
+nodeBox w h n = fmap (const . Set.singleton $ AG.Id AG.Node n) (Draw.tint col (Draw.scale w h Draw.%% Draw.circle))
     where c = fromIntegral ((100*n) `mod` 256) / 256
-          col = (Draw.Color c (1-c) 1 0.5)
+          col = Draw.Color c (1-c) 1 0.5
 
 
 
@@ -68,7 +71,7 @@ coordsFromSDL w h v = Vector2.vector2 (2*(x / w) - 1) (1 - 2*(y / h))
           y = Vector2.getY v
   
 coordsFromSDL' :: (Fractional a) => a -> a -> a -> a -> (a, a)
-coordsFromSDL' w h x y = Vector2.getXY . coordsFromSDL w h $ (Vector2.vector2 x y)
+coordsFromSDL' w h x y = Vector2.getXY . coordsFromSDL w h $ Vector2.vector2 x y
 
 coordsFromDOT :: (Fractional a) => a -> a -> Vector2.Vector2 a -> Vector2.Vector2 a
 coordsFromDOT w h v = Vector2.vector2 (2*(x / w) - 1) (2*(y / h) - 1)
@@ -76,8 +79,7 @@ coordsFromDOT w h v = Vector2.vector2 (2*(x / w) - 1) (2*(y / h) - 1)
           y = Vector2.getY v
   
 locateClick :: (Show c, Integral a, Integral b) => Draw.R -> Draw.R -> a -> b -> Draw.Image c -> c
-locateClick w h x y draw = unsafePerformIO $ (getIds (fromIntegral x) (fromIntegral y) draw)
+locateClick w h x y draw = unsafePerformIO $ getIds (fromIntegral x) (fromIntegral y) draw
     where getIds x' y' draw' =  do
             let pos = coordsFromSDL' w h x' y'
-            res <- Draw.sample pos draw'
-            return res
+            Draw.sample pos draw'

@@ -39,7 +39,7 @@ setPointsE points vrde = vrde{AG.pointsE = points,
                               AG.bezierSamplesNumE = newNumSamples,
                               AG.bezierSamplesE = Bezier.bezierNSamples newNumSamples points
                              }
-                         where newNumSamples = (length points)*2 -- todo fix this magic number
+                         where newNumSamples = length points * 2 -- todo fix this magic number
                          
 addVRDEAttr :: (RealFloat a) => GVAttrs.Attribute -> AG.VRDEdge a -> AG.VRDEdge a
 addVRDEAttr (GVAttrs.Pos (GVAttrs.SplinePos (s:_))) = setPointsE . splineToVecs $ s
@@ -82,5 +82,6 @@ autoLayout ag = AG.AG gr newVRN newVRE newVRG
         convToVRG (_:attrs) vrg = convToVRG attrs vrg
         convToVRG []        vrg = vrg
 
-
+layoutIfNeeded :: (RealFloat c) => AG.AnnotatedGraph a b c -> AG.AnnotatedGraph a b c
+layoutIfNeeded ag = if (AG.needsLayout . AG.vrGraph $ ag) then autoLayout ag else ag
 
