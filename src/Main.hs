@@ -175,11 +175,6 @@ eventToAG ag (Yampa.Event ZoomOut) = Just (AG.zoomBy 0.9 ag)
 eventToAG ag (Yampa.Event ToggleRender) = Just (AG.toggleRender ag)
 eventToAG _ _ = Nothing
 
--- eventToAG' :: (Show a, Eq a, RealFloat c) => Yampa.SF (Yampa.Event (AGEvent a String), AG.AnnotatedGraph a String c)
---                                                       (AG.AnnotatedGraph a String c)
--- eventToAG' = proc (ag, ev) -> do
---                let newAG = (flip eventToAG) ag ev
---                Yampa.returnA -< newAG
 
 updatedSelectedElements :: (RealFloat c) => AG.Ids -> AG.AnnotatedGraph a String c -> AG.AnnotatedGraph a String c
 updatedSelectedElements id' ag = if length nodesList == 2 then connectedAg else updatedAg
@@ -201,6 +196,3 @@ guiEventHandler = proc agEvent -> do
                     Yampa.returnA -< (agEvent == Yampa.Event Quit)
 
 
--- interpolate :: (a -> a -> t -> a) -> Yampa.SF (Yampa.Event a) a
--- interpolate interpF = proc ag -> do
---                         let 

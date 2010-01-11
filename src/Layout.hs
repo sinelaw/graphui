@@ -52,10 +52,11 @@ edgeAttrsToVRDE :: (RealFloat a) => GVAttrs.Attributes -> AG.VRDEdge a -> AG.VRD
 edgeAttrsToVRDE attrs vrde = foldr addVRDEAttr vrde attrs
 
 
-addVRGAttr :: (Fractional a) => GVAttrs.Attribute -> AG.VRGraph a -> AG.VRGraph a
-addVRGAttr (GVAttrs.Bb (GVAttrs.Rect _ p2)) vrg = vrg{AG.widthG = Vector2.getX v,
-                                                      AG.heightG = Vector2.getY v}
+addVRGAttr :: (Ord a, Fractional a) => GVAttrs.Attribute -> AG.VRGraph a -> AG.VRGraph a
+addVRGAttr (GVAttrs.Bb (GVAttrs.Rect _ p2)) vrg = vrg{AG.widthG = mdim,
+                                                      AG.heightG = mdim}
     where v = pointToVec p2
+          mdim = max (Vector2.getX v) (Vector2.getY v)
 addVRGAttr _ vrg = vrg
 
 -- todo use graphToGraph, to utilize the manually-set attribute information
