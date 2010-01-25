@@ -12,37 +12,45 @@ main = do
   return ()
   
 
-initial :: IO String
+initial :: IO Double
 initial = do
-  return ""
+  return 0
   
-sense :: Bool -> IO (Yampa.DTime, Maybe String)
+sense :: Bool -> IO (Yampa.DTime, Maybe Double)
 sense _ = do
   res <- getLine
-  return (1, Just res)
+  return (0.1, Just (read res))
   
-actuate :: Bool -> String -> IO Bool
+actuate :: Bool -> Double -> IO Bool
 actuate updated out = do
   print out
   return False
 
-processor :: Yampa.SF String String
+processor :: Yampa.SF Double Double
 processor = proc (s) -> do 
               let e' = Yampa.Event s
-              (r1,r2,r3) <- dP -< e'
-              Yampa.returnA -< r1++" "++r2++" "++r3
+              r <- dP -< e'
+              Yampa.returnA -< r
               --Yampa.returnA -< "BLA"
-    where dP = dProcessor "A" "B"
+    where dP = dProcessor linearInterp 0 0
 
-dProcessor :: a -> a -> Yampa.SF (Yampa.Event a) (a, a, a)
-dProcessor a b = (eventPairs Yampa.NoEvent) Yampa.>>> (eventSource interpolator b) Yampa.>>> (Yampa.rSwitch (interpolator a b))
+linearInterp a b = proc (t) -> do
+                     let res = lInterp a b t 
+                         lInterp a b t | t <= 0 = a
+                                    | t >= 1 = b
+                                    | otherwise = t/(b-a)
+                     Yampa.returnA -< res
+
+
+--dProcessor :: (a -> a -> Yampa.SF a c) -> a -> a -> Yampa.SF (Yampa.Event a) c
+dProcessor interpolator a b = (Yampa.time Yampa.&&& (eventPairs Yampa.NoEvent)) Yampa.>>> (eventSource interpolator b) Yampa.>>> (Yampa.rSwitch (interpolator a b))
   
 -- dSwitch :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
-eventSource :: (b -> c -> a) -> c -> Yampa.SF (Yampa.Event (b, c)) (c, Yampa.Event a)
-eventSource interp a_init = proc (x) -> do
+eventSource :: (b -> c -> a) -> c -> Yampa.SF (d, Yampa.Event (b, c)) (d, Yampa.Event a)
+eventSource interp a_init = proc (d, x) -> do
                               let ev' = case x of
-                                          Yampa.Event (old,new) -> (new, Yampa.Event (interp old new))
-                                          Yampa.NoEvent -> (a_init, Yampa.NoEvent)
+                                          Yampa.Event (old,new) -> (d, Yampa.Event (interp old new))
+                                          Yampa.NoEvent -> (d, Yampa.NoEvent)
                               Yampa.returnA -< (ev')
 
 eventPairs :: (Yampa.Event (a,a)) -> Yampa.SF (Yampa.Event a) (Yampa.Event (a,a))
@@ -52,8 +60,6 @@ eventPairs a_init = sscanPrim' f a_init
         f _ _ = Nothing
                       
 
-interpolator :: a -> b -> Yampa.SF c (a, b, c)
-interpolator a b = Yampa.arr (\x -> (a,b,x))
 
 sscanPrim' :: (b -> a -> Maybe b) -> b -> Yampa.SF a b
 sscanPrim' f b_init = Yampa.sscanPrim f' b_init b_init
