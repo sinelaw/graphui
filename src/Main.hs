@@ -77,26 +77,14 @@ actuate mayHaveChanged (needQuit, draw, _, ag) = do
                 else redrawMouse
       mpos = Vector2.getXY . Render.coordsFromSDL fResX fResY . AG.mousePos . AG.vrGraph $ ag
       cursor = Draw.translate (Render.onBoth realToFrac mpos) Draw.%% Render.nodeBox 0.05 0.05 123
-      redraw      = fastDraw (draw `mappend` cursor) >> SDL.glSwapBuffers
-      redrawMouse = fastDraw cursor >> SDL.glSwapBuffers
+      redraw      = Draw.clearRender (draw `mappend` cursor) >> SDL.glSwapBuffers
+      redrawMouse = Draw.clearRender cursor >> SDL.glSwapBuffers
   
 
 
-fastDraw :: Draw.Image a -> IO ()
-fastDraw d = do
-  GL.clear [GL.ColorBuffer]
-  Draw.render d
-    
 initial :: IO SDL.Event
 initial = do
   initScreen
-  GL.texture GL.Texture2D GL.$= GL.Enabled
-  GL.blend GL.$= GL.Enabled
-  GL.blendFunc GL.$= (GL.SrcAlpha, GL.OneMinusSrcAlpha)
-  GL.polygonSmooth GL.$= GL.Enabled
-  GL.lineSmooth GL.$= GL.Enabled
-  GL.lineWidth GL.$= 1.5
-  GL.hint GL.LineSmooth GL.$= GL.DontCare
   return SDL.NoEvent
 
 processor :: Yampa.SF SDL.Event (Bool,  -- shall we quit?

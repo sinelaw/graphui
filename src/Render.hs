@@ -34,22 +34,19 @@ onBoth :: (a -> b) -> (a,a) -> (b, b)
 onBoth f (x,y) = (f x, f y)
 
 renderEdge :: AG.VRGraph Draw.R -> Int -> AG.VRDEdge Draw.R -> Draw.Image AG.Ids
-renderEdge vrg id' vrdEdge = mconcat (map mkLine (zip ps (tail ps))) `mappend` firstCircle  
-  where ps' = AG.bezierSamplesE vrdEdge
-        ps = case length ps' of
-          0 -> error ("Must get a list of points to draw an edge. Got: " ++ show((vrg, id', vrdEdge)))
-          _ -> ps'
-        --ps = AG.pointsE vrdEdge
-        mkLine = fmap mkIds . uncurry Draw.line . onBoth (Vector2.getXY . coordsFromDOT w h)
+renderEdge vrg id' vrdEdge = curve `mappend` firstCircle  
+  where w = AG.widthG vrg
+        h = AG.heightG vrg
+        controlPoints = map (coordsFromDOT w h) (AG.pointsE vrdEdge)
+        curve = fmap mkIds . Draw.bezierCurve $ map Vector2.getXY controlPoints
         mkIds = const . Set.singleton $ AG.Id AG.Edge id'
         firstCircle = fmap mkIds 
                       . Draw.tint (Draw.Color 1 0 0 0.5) $
-                      (Draw.translate (Vector2.getXY . coordsFromDOT w h . last $ ps) 
+                      (Draw.translate (Vector2.getXY . last $ controlPoints) 
                       Draw.%% Draw.scale 0.02 0.02  
                       Draw.%% Draw.circle)
 
-        w = AG.widthG vrg
-        h = AG.heightG vrg
+        
                       
 
 

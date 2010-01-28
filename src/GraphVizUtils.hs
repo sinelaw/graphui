@@ -25,14 +25,14 @@ dotizedGraph'' isDir g = unsafePerformIO
 --                -> (LNode a -> Attributes) -> (LEdge b -> Attributes)
 --                -> ([GlobalAttributes], IO (gr (AttributeNode a) (AttributeEdge b)))
 graphToGraph'' isDir gr gAttributes fmtNode fmtEdge
-    = dotAttributes' isDir gr dot
+    = dotAttributesAlt isDir gr dot
     where
       dot = graphToDot isDir gr gAttributes fmtNode fmtEdge
       
 
-dotAttributes' :: (Graph.Graph gr) => Bool -> gr a b -> DotGraph Graph.Node
+dotAttributesAlt :: (Graph.Graph gr) => Bool -> gr a b -> DotGraph Graph.Node
                  -> IO ([GlobalAttributes], gr (AttributeNode a) (AttributeEdge b))
-dotAttributes' isDir gr dot
+dotAttributesAlt isDir gr dot
     = do (Right output) <- graphvizWithHandle command
                                               dot
                                               DotOutput

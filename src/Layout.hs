@@ -6,7 +6,6 @@ import qualified Data.Graph.Inductive as Graph
 
 import qualified AnnotatedGraph as AG
 import qualified Math.Vector2 as Vector2
-import qualified Math.Bezier as Bezier
 
 import qualified Data.GraphViz.Attributes as GVAttrs
 import qualified Data.GraphViz.Types as GVTypes
@@ -36,8 +35,7 @@ splineToVecs (GVAttrs.Spline s e ps) = map pointToVec points
           
 setPointsE :: (RealFloat a) => [Vector2.Vector2 a] -> AG.VRDEdge a -> AG.VRDEdge a
 setPointsE points vrde = vrde{AG.pointsE = points, 
-                              AG.bezierSamplesNumE = newNumSamples,
-                              AG.bezierSamplesE = Bezier.bezierNSamples newNumSamples points
+                              AG.bezierSamplesNumE = newNumSamples
                              }
                          where newNumSamples = length points * 2 -- todo fix this magic number
                          
