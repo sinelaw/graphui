@@ -63,7 +63,7 @@ sense tpRef _ = do
 actuate :: (Show a, Eq a, Show b, Eq b, RealFloat c) => 
            Bool 
            -> (Bool, 
-               Draw.Image AG.Ids, 
+               Draw.Image (Maybe AG.Ids), 
                Yampa.Event (AGEvent a b), 
                AG.AnnotatedGraph a b c) 
            -> IO Bool
@@ -88,7 +88,7 @@ initial = do
   return SDL.NoEvent
 
 processor :: Yampa.SF SDL.Event (Bool,  -- shall we quit?
-                                 Draw.Image AG.Ids, -- The updated rendered screen
+                                 Draw.Image (Maybe AG.Ids), -- The updated rendered screen
                                  Yampa.Event (AGEvent String String),  -- The event processed
                                  -- Debugging stuff:
                                  AG.AnnotatedGraph String String FloatType -- the resulting annotated graph
@@ -132,7 +132,7 @@ data AGEvent a b = AddNewNode a
                    deriving (Eq, Show)
 
 
-sdlToAGEvents :: Yampa.SF (SDL.Event, Draw.Image AG.Ids) (Yampa.Event (AGEvent String String))
+sdlToAGEvents :: Yampa.SF (SDL.Event, Draw.Image (Maybe AG.Ids)) (Yampa.Event (AGEvent String String))
 sdlToAGEvents = proc (sdlEvent, draw) -> do
                   let anGraphEvent = case sdlEvent of
                                        SDL.KeyDown ks -> case (SDL.symKey ks) of
@@ -141,8 +141,9 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
                                                            SDL.SDLK_EQUALS -> Yampa.Event ZoomIn
                                                            SDL.SDLK_MINUS  -> Yampa.Event ZoomOut
                                                            _          -> Yampa.NoEvent
-                                       SDL.MouseButtonDown x y _ -> let id' = Render.locateClick fResX fResY x y draw
-                                                                    in Yampa.Event (AGElementSelected id')
+                                       SDL.MouseButtonDown x y _ -> case Render.locateClick fResX fResY x y draw of 
+                                                                      Nothing -> Yampa.NoEvent
+                                                                      Just ids -> Yampa.Event (AGElementSelected ids)
                                        SDL.MouseMotion x y _ _ -> Yampa.Event (MouseMotion fx fy)
                                            where fx = fromIntegral x
                                                  fy = fromIntegral y
@@ -174,7 +175,7 @@ updatedSelectedElements id' ag = if length nodesList == 2 then connectedAg else 
           connectedAg = AG.resetSelectedElements (AG.connectNodes nodesList "new" updatedAg)
 
 
-procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b FloatType) (Draw.Image AG.Ids)
+procRenderAG :: Yampa.SF (AG.AnnotatedGraph a b FloatType) (Draw.Image (Maybe AG.Ids))
 procRenderAG = proc ag -> do
              Yampa.returnA -< (Render.renderAG ag)
 

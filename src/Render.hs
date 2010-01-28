@@ -12,7 +12,7 @@ import System.IO.Unsafe(unsafePerformIO) -- to hide the click collision detectio
 
 
 
-renderAG :: AG.AnnotatedGraph a b Draw.R -> Draw.Image AG.Ids
+renderAG :: AG.AnnotatedGraph a b Draw.R -> Draw.Image (Maybe AG.Ids)
 renderAG (AG.AG _ vrNodes vrEdges vrGraph) = Draw.scale s s Draw.%% drawAG
     where drawAG = mconcat (renderedNodes ++ renderedEdges) 
           renderedNodes = renderElements vrNodes (renderNode vrGraph)
@@ -22,7 +22,7 @@ renderAG (AG.AG _ vrNodes vrEdges vrGraph) = Draw.scale s s Draw.%% drawAG
 
 
 
-renderNode :: AG.VRGraph Draw.R -> Int -> AG.VRDNode Draw.R -> Draw.Image AG.Ids
+renderNode :: AG.VRGraph Draw.R -> Int -> AG.VRDNode Draw.R -> Draw.Image (Maybe AG.Ids)
 renderNode vrg id' vrdNode = Draw.translate transxy Draw.%% nodeBox w h id'
     where gw = AG.widthG vrg
           gh = AG.heightG vrg
@@ -33,13 +33,13 @@ renderNode vrg id' vrdNode = Draw.translate transxy Draw.%% nodeBox w h id'
 onBoth :: (a -> b) -> (a,a) -> (b, b)
 onBoth f (x,y) = (f x, f y)
 
-renderEdge :: AG.VRGraph Draw.R -> Int -> AG.VRDEdge Draw.R -> Draw.Image AG.Ids
+renderEdge :: AG.VRGraph Draw.R -> Int -> AG.VRDEdge Draw.R -> Draw.Image (Maybe AG.Ids)
 renderEdge vrg id' vrdEdge = curve `mappend` firstCircle  
   where w = AG.widthG vrg
         h = AG.heightG vrg
         controlPoints = map (coordsFromDOT w h) (AG.pointsE vrdEdge)
         curve = fmap mkIds . Draw.bezierCurve $ map Vector2.getXY controlPoints
-        mkIds = const . Set.singleton $ AG.Id AG.Edge id'
+        mkIds = mkLabel . Set.singleton $ AG.Id AG.Edge id'
         firstCircle = fmap mkIds 
                       . Draw.tint (Draw.Color 1 0 0 0.5) $
                       (Draw.translate (Vector2.getXY . last $ controlPoints) 
@@ -48,17 +48,18 @@ renderEdge vrg id' vrdEdge = curve `mappend` firstCircle
 
         
                       
-
-
+mkLabel :: a -> Any -> Maybe a
+mkLabel label (Any b) = if b then Just label else Nothing
 
 -- Temporary hacks
 square :: Draw.Image Any
 square = Draw.convexPoly [(1,1),(1,-1),(-1,-1),(-1,1)]
 
-nodeBox :: Draw.R -> Draw.R -> Int -> Draw.Image AG.Ids
-nodeBox w h n = fmap (const . Set.singleton $ AG.Id AG.Node n) (Draw.tint col (Draw.scale w h Draw.%% Draw.circle))
+nodeBox :: Draw.R -> Draw.R -> Int -> Draw.Image (Maybe AG.Ids)
+nodeBox w h n = fmap label (Draw.tint col (Draw.scale w h Draw.%% Draw.circle))
     where c = fromIntegral ((100*n) `mod` 256) / 256
           col = Draw.Color c (1-c) 1 0.5
+          label = mkLabel . Set.singleton $ AG.Id AG.Node n
 
 
 
