@@ -35,7 +35,7 @@ newGrLEdge n1 n2 label' gr = (n1, n2, (newGrEdgeNum gr, label'))
 data ElementType = Node | Edge
      deriving (Ord, Eq, Show)
 
-data Id = Id ElementType Int
+data Id = Id { idElementType :: ElementType, idNum :: Int }
      deriving (Show, Eq, Ord)
 
 type Ids = Set.Set Id
@@ -85,6 +85,7 @@ data VRGraph a = VRGraph { mousePos :: Vector2.Vector2 a,
                            needsLayout :: Bool, 
                            renderGraph :: Bool,
                            selectedElements :: Ids, 
+                           hoveredElements :: Ids,
                            widthG :: a,
                            heightG :: a,
                            zoomG :: a}
@@ -95,6 +96,7 @@ defaultVRG = VRGraph{mousePos = Vector2.zeroVector,
                      renderGraph = True,
                      needsLayout = False, 
                      selectedElements = mempty, 
+                     hoveredElements = mempty,
                      widthG = 1, 
                      heightG = 1, 
                      zoomG = 1} 
@@ -112,6 +114,7 @@ lZoomG :: VRGraph a :-> a
 lHeightG :: VRGraph a :-> a
 lWidthG :: VRGraph a :-> a
 lSelectedElements :: VRGraph a :-> Ids
+lHoveredElements :: VRGraph a :-> Ids
 lRenderGraph :: VRGraph a :-> Bool
 lNeedsLayout :: VRGraph a :-> Bool
 lMousePos :: VRGraph a :-> Vector2.Vector2 a
@@ -135,8 +138,14 @@ setMousePos = set (lMousePos . lVrGraph)
 setSelectedElements :: Ids -> AnnotatedGraph a b c -> AnnotatedGraph a b c
 setSelectedElements = set (lSelectedElements . lVrGraph)
 
+setHoveredElements :: Ids -> AnnotatedGraph a b c -> AnnotatedGraph a b c
+setHoveredElements = set (lHoveredElements . lVrGraph)
+
 resetSelectedElements :: AnnotatedGraph a b c -> AnnotatedGraph a b c
 resetSelectedElements = setSelectedElements Set.empty
+
+resetHoveredElements ::  AnnotatedGraph a b c -> AnnotatedGraph a b c
+resetHoveredElements = setHoveredElements Set.empty
 
 instance (Show c) => Show (AnnotatedGraph a b c) where
   show ag = "(AG: vrGraph = " ++ show (vrGraph ag)  

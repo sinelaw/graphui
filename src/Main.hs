@@ -37,7 +37,7 @@ initScreen = do
     SDL.init [SDL.InitTimer, SDL.InitVideo]
     -- resolution & color depth
     SDL.setVideoMode resX resY 32 [SDL.OpenGL]
-    Draw.init
+    --Draw.init
     return ()
 
 
@@ -76,7 +76,9 @@ actuate mayHaveChanged (needQuit, draw, _, ag) = do
                 then redraw
                 else redrawMouse
       mpos = Vector2.getXY . Render.coordsFromSDL fResX fResY . AG.mousePos . AG.vrGraph $ ag
-      cursor = Draw.translate (Render.onBoth realToFrac mpos) Draw.%% Render.nodeBox 0.05 0.05 123
+      cursor = Draw.translate (Render.onBoth realToFrac mpos) 
+               Draw.%% Draw.scale 0.03 0.03 
+               Draw.%% (Draw.tint (Draw.Color 0 1 0 1) . fmap (const Nothing) $ Render.circle)
       redraw      = Draw.clearRender (draw `mappend` cursor) >> SDL.glSwapBuffers
       redrawMouse = Draw.clearRender cursor >> SDL.glSwapBuffers
   
@@ -126,7 +128,7 @@ data AGEvent a b = AddNewNode a
                  | Quit 
                  | ToggleRender
                  | AGElementSelected AG.Ids 
-                 | MouseMotion Int Int
+                 | MouseMotion Int Int AG.Ids
                  | ZoomOut
                  | ZoomIn
                    deriving (Eq, Show)
@@ -144,9 +146,12 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
                                        SDL.MouseButtonDown x y _ -> case Render.locateClick fResX fResY x y draw of 
                                                                       Nothing -> Yampa.NoEvent
                                                                       Just ids -> Yampa.Event (AGElementSelected ids)
-                                       SDL.MouseMotion x y _ _ -> Yampa.Event (MouseMotion fx fy)
+                                       SDL.MouseMotion x y _ _ -> Yampa.Event (MouseMotion fx fy id')
                                            where fx = fromIntegral x
                                                  fy = fromIntegral y
+                                                 id' = case Render.locateClick fResX fResY x y draw of
+                                                         Nothing -> mempty
+                                                         Just ids -> ids
                                        SDL.Quit -> Yampa.Event Quit
                                        _ -> Yampa.NoEvent
                   Yampa.returnA -< anGraphEvent
@@ -155,8 +160,9 @@ sdlToAGEvents = proc (sdlEvent, draw) -> do
 eventToAG :: (Show a, Eq a, RealFloat c) => AG.AnnotatedGraph a String c -> Yampa.Event (AGEvent a String)
                                             -> Maybe (AG.AnnotatedGraph a String c)
 eventToAG ag (Yampa.Event (AddNewNode x)) = Just (Layout.autoLayout (AG.insNewLNode x ag))
-eventToAG ag (Yampa.Event (MouseMotion x y)) = Just (AG.setMousePos mouseVec ag)
+eventToAG ag (Yampa.Event (MouseMotion x y ids)) = Just (AG.setMousePos mouseVec ag')
     where mouseVec = Vector2.vector2 (fromIntegral x) (fromIntegral y)
+          ag' = AG.setHoveredElements ids ag
 eventToAG ag (Yampa.Event (AGElementSelected id')) = Just (Layout.layoutIfNeeded (updatedSelectedElements id' ag))
  -- todo replace magic numbers
 eventToAG ag (Yampa.Event ZoomIn ) = Just (AG.zoomBy 1.1 ag)

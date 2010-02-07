@@ -23,12 +23,15 @@ renderAG (AG.AG _ vrNodes vrEdges vrGraph) = Draw.scale s s Draw.%% drawAG
 
 
 renderNode :: AG.VRGraph Draw.R -> Int -> AG.VRDNode Draw.R -> Draw.Image (Maybe AG.Ids)
-renderNode vrg id' vrdNode = Draw.translate transxy Draw.%% nodeBox w h id'
+renderNode vrg id' vrdNode = Draw.translate transxy Draw.%% nodeBox w h nodeId hovered selected
     where gw = AG.widthG vrg
           gh = AG.heightG vrg
           w = AG.widthN vrdNode / gw
           h = AG.heightN vrdNode / gh
           transxy = Vector2.getXY . coordsFromDOT gw gh . AG.positionN $ vrdNode
+          nodeId = AG.Id AG.Node id'
+          hovered = Set.member nodeId (AG.hoveredElements vrg)
+          selected = Set.member nodeId (AG.selectedElements vrg)
 
 onBoth :: (a -> b) -> (a,a) -> (b, b)
 onBoth f (x,y) = (f x, f y)
@@ -55,11 +58,16 @@ mkLabel label (Any b) = if b then Just label else Nothing
 square :: Draw.Image Any
 square = Draw.convexPoly [(1,1),(1,-1),(-1,-1),(-1,1)]
 
-nodeBox :: Draw.R -> Draw.R -> Int -> Draw.Image (Maybe AG.Ids)
-nodeBox w h n = fmap label (Draw.tint col (Draw.scale w h Draw.%% Draw.circle))
-    where c = fromIntegral ((100*n) `mod` 256) / 256
-          col = Draw.Color c (1-c) 1 0.5
-          label = mkLabel . Set.singleton $ AG.Id AG.Node n
+nodeBox :: Draw.R -> Draw.R -> AG.Id -> Bool -> Bool -> Draw.Image (Maybe AG.Ids)
+nodeBox w h id' hovered selected = fmap label (Draw.tint col (Draw.scale w h Draw.%% circle))
+    where n = AG.idNum id'
+          c = fromIntegral ((100*n) `mod` 256) / 256
+          col = case (hovered, selected) of 
+                  (False, False) -> Draw.Color c (1-c) 1 0.5
+                  (True, False)  -> Draw.Color 0.8 0.2 0.2 0.8
+                  (False, True)  -> Draw.Color 0.2 0.8 0.2 0.8
+                  (True,  True)  -> Draw.Color 0.2 0.8 0.2 0.8
+          label = mkLabel . Set.singleton $ id'
 
 
 
@@ -76,8 +84,15 @@ coordsFromDOT w h v = Vector2.vector2 (2*(x / w) - 1) (2*(y / h) - 1)
     where x = Vector2.getX v
           y = Vector2.getY v
   
+
+
+
 locateClick :: (Show c, Integral a, Integral b) => Draw.R -> Draw.R -> a -> b -> Draw.Image c -> c
 locateClick w h x y draw = unsafePerformIO $ getIds (fromIntegral x) (fromIntegral y) draw
     where getIds x' y' draw' =  do
             let pos = coordsFromSDL' w h x' y'
-            Draw.sample pos draw'
+            Draw.sample draw' pos
+
+
+circle :: Draw.Image Any
+circle = Draw.regularPoly (64 :: Integer)
