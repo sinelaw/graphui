@@ -18,7 +18,6 @@ import Data.Monoid(Monoid(..))
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 
 import Graphics.Rendering.OpenGL.GL(GLdouble)
-import qualified Graphics.Rendering.OpenGL.GL as GL
 
 
 type FloatType = GLdouble
@@ -36,7 +35,7 @@ initScreen :: IO ()
 initScreen = do
     SDL.init [SDL.InitTimer, SDL.InitVideo]
     -- resolution & color depth
-    SDL.setVideoMode resX resY 32 [SDL.OpenGL]
+    _ <- SDL.setVideoMode resX resY 32 [SDL.OpenGL]
     --Draw.init
     return ()
 
