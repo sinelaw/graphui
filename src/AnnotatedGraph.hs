@@ -13,7 +13,7 @@ import qualified Math.Vector2 as Vector2
 -- fclabel stuff
 import Prelude hiding ((.),id,mod)
 import Control.Category
-import Data.Record.Label
+import Data.Label
 --
 
 type GraphStructure a b = Graph.Gr a b
@@ -59,10 +59,11 @@ defaultVRDN = VRDNode { shapeN = Ellipse,
                         widthN = 10,
                         heightN = 10 }
               
-type VRNode a = IntMap.IntMap (VRDNode a)
+newtype VRNode a = VRNode { unVRNode :: (IntMap.IntMap (VRDNode a)) }
+                   deriving (Show, Eq)
 
 vrNodeEmpty :: VRNode a
-vrNodeEmpty = IntMap.empty
+vrNodeEmpty = VRNode IntMap.empty
 
 data VRDEdge a = VRDEEmpty | VRDEdge { widthE :: a, 
                                        pointsE :: [Vector2.Vector2 a], 
@@ -76,10 +77,11 @@ defaultVRDE = VRDEdge { widthE = 0,
                         bezierSamplesNumE = 8,
                         bezierSamplesE = [] }
 
-type VREdge a = IntMap.IntMap (VRDEdge a)
+newtype VREdge a = VREdge {unVREdge :: (IntMap.IntMap (VRDEdge a)) }
+                   deriving (Show, Eq)
 
 vrEdgeEmpty :: VREdge a
-vrEdgeEmpty = IntMap.empty
+vrEdgeEmpty = VREdge IntMap.empty
 
 data VRGraph a = VRGraph { mousePos :: Vector2.Vector2 a, 
                            needsLayout :: Bool, 
@@ -107,21 +109,11 @@ data AnnotatedGraph a b c = AG { graph :: GraphStructure a (Int, b),
                                  vrGraph :: VRGraph c}
 
 -- Use fclabels to make nicer field accessors
-$(mkLabels [''AnnotatedGraph, ''VRNode, ''VREdge, ''VRGraph])
-  
-  
-lZoomG :: VRGraph a :-> a
-lHeightG :: VRGraph a :-> a
-lWidthG :: VRGraph a :-> a
-lSelectedElements :: VRGraph a :-> Ids
-lHoveredElements :: VRGraph a :-> Ids
-lRenderGraph :: VRGraph a :-> Bool
-lNeedsLayout :: VRGraph a :-> Bool
-lMousePos :: VRGraph a :-> Vector2.Vector2 a
-lVrGraph :: AnnotatedGraph a b c :-> VRGraph c
-lVrEdges :: AnnotatedGraph a b c :-> VREdge c
-lVrNodes :: AnnotatedGraph a b c :-> VRNode c
-lGraph :: AnnotatedGraph a b c :-> GraphStructure a (Int, b) 
+$(mkLabels [''AnnotatedGraph])
+$(mkLabels [''VRNode])
+$(mkLabels [''VREdge])
+$(mkLabels [''VRGraph])
+                         
                                       
 zoomBy :: (Num c) => c -> AnnotatedGraph a b c -> AnnotatedGraph a b c
 zoomBy s ag = set (lZoomG . lVrGraph) (s * (get (lZoomG . lVrGraph) ag)) ag
@@ -157,7 +149,7 @@ instance (Show c) => Show (AnnotatedGraph a b c) where
 
 empty :: (RealFloat c) => AnnotatedGraph a b c
 empty = AG { graph = Graph.empty, 
-             vrNodes = IntMap.empty, 
+             vrNodes = vrNodeEmpty, 
              vrEdges = vrEdgeEmpty, 
              vrGraph = defaultVRG
            }
@@ -168,7 +160,7 @@ newLNode label' = newGrLNode label' . graph
 insLNode :: (RealFloat c) => Graph.LNode a -> AnnotatedGraph a b c -> AnnotatedGraph a b c
 insLNode n ag = set lVrNodes newVRNodes updatedGr
     where updatedGr = set lGraph (Graph.insNode n (graph ag)) ag
-          newVRNodes = IntMap.insert (fst n) defaultVRDN (vrNodes ag)
+          newVRNodes = VRNode $ IntMap.insert (fst n) defaultVRDN (unVRNode $ vrNodes ag)
 
 insNewLNode :: (RealFloat c) => a -> AnnotatedGraph a b c -> AnnotatedGraph a b c
 insNewLNode x ag = insLNode (newLNode x ag) ag
@@ -180,7 +172,7 @@ newLEdge n1 n2 label' = newGrLEdge n1 n2 label' . graph
 insLEdge :: (RealFloat c) => Graph.LEdge (Int,b) -> AnnotatedGraph a b c -> AnnotatedGraph a b c
 insLEdge eg@(_,_,(id',_)) ag = set lVrEdges newVREdges updatedGr
   where updatedGr = set lGraph (Graph.insEdge eg (graph ag)) ag
-        newVREdges = IntMap.insert id' defaultVRDE (vrEdges ag)
+        newVREdges = VREdge $ IntMap.insert id' defaultVRDE (unVREdge $ vrEdges ag)
 
 insNewLEdge :: (RealFloat c) => Int -> Int -> b -> AnnotatedGraph a b c -> AnnotatedGraph a b c
 insNewLEdge n1 n2 label' ag = insLEdge (newLEdge n1 n2 label' ag) ag

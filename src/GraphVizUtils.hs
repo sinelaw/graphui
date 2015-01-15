@@ -4,7 +4,7 @@ import Data.GraphViz
 
 import qualified Data.Graph.Inductive as Graph
 import System.IO.Unsafe(unsafePerformIO) 
-
+import Data.Text.Lazy.IO(hGetContents)
 import Control.Arrow((&&&))
 import Data.Maybe(fromJust)
 import qualified Data.Map as Map
@@ -12,31 +12,56 @@ import qualified Data.Map as Map
 
 -- Unsafe IO is safe here because we aren't touching the graphviz random seed 
 -- (unsetting it will cause random node assignment, which isn't pure)
--- dotizedGraph'' :: (Graph gr) => Bool -> gr a b
---                                 -> ([GlobalAttributes], gr (AttributeNode a) (AttributeEdge b))
-dotizedGraph'' isDir g = unsafePerformIO
-                         $ graphToGraph'' isDir g gAttrs noAttrs noAttrs
+dotizedGraph'' :: (Graph.Graph gr) =>
+                  gr t b
+                  -> Bool
+                  -> ([GlobalAttributes], gr (Attributes, t) (Attributes, b))
+dotizedGraph'' g isDir = unsafePerformIO
+                         $ graphToGraph'' g isDir gAttrs noAttrs noAttrs
     where
       gAttrs = []
       noAttrs = const []
 
 
--- graphToGraph'' :: (Graph gr) => Bool -> gr a b -> [GlobalAttributes]
---                -> (LNode a -> Attributes) -> (LEdge b -> Attributes)
---                -> ([GlobalAttributes], IO (gr (AttributeNode a) (AttributeEdge b)))
-graphToGraph'' isDir gr gAttributes fmtNode fmtEdge
+
+mkParams :: Bool
+            -> [GlobalAttributes]
+            -> ((n, l) -> Attributes)
+            -> ((n, n, el) -> Attributes)
+            -> GraphvizParams n l el () l
+mkParams isDir gAttributes fmtNode' fmtEdge' =
+  nonClusteredParams { fmtNode = fmtNode'
+                     , fmtEdge = fmtEdge'
+                     , isDirected = isDir
+                     , globalAttributes = gAttributes
+                     }
+
+graphToGraph'' :: (Graph.Graph gr) =>
+                  gr t b
+                  -> Bool
+                  -> [GlobalAttributes]
+                  -> ((Graph.Node, t) -> Attributes)
+                  -> ((Graph.Node, Graph.Node, b) -> Attributes)
+                  -> IO ([GlobalAttributes], gr (Attributes, t) (Attributes, b))
+graphToGraph'' gr isDir gAttributes fmtNode' fmtEdge'
     = dotAttributesAlt isDir gr dot
     where
-      dot = graphToDot isDir gr gAttributes fmtNode fmtEdge
-      
+      dot = graphToDot params gr
+      params = mkParams isDir gAttributes fmtNode' fmtEdge'
 
-dotAttributesAlt :: (Graph.Graph gr) => Bool -> gr a b -> DotGraph Graph.Node
-                 -> IO ([GlobalAttributes], gr (AttributeNode a) (AttributeEdge b))
+
+-- dotAttributesAlt :: (Graph.Graph gr) => Bool -> gr a b -> DotGraph Graph.Node
+--                  -> IO ([GlobalAttributes], gr (AttributeNode a) (AttributeEdge b))
+dotAttributesAlt :: (PrintDotRepr dg n, Graph.Graph gr1, Graph.Graph gr) =>
+                    Bool
+                    -> gr t b
+                    -> dg n
+                    -> IO ([GlobalAttributes], gr1 (Attributes, t) (Attributes, b))
 dotAttributesAlt isDir gr dot
-    = do (Right output) <- graphvizWithHandle command
+    = do output <- graphvizWithHandle command
                                               dot
                                               DotOutput
-                                              hGetContents'
+                                              hGetContents
          return $ rebuildGraphWithAttributes output
     where
       command = if isDir then dirCommand else undirCommand
@@ -54,6 +79,6 @@ dotAttributesAlt isDir gr dot
             ns = graphNodes g'
             es = graphEdges g'
             nodeMap = Map.fromList $ map (nodeID &&& nodeAttributes) ns
-            edgeMap = Map.fromList $ map ( (edgeFromNodeID &&& edgeToNodeID)
+            edgeMap = Map.fromList $ map ( (fromNode &&& toNode)
                                            &&& edgeAttributes) es
             gAttrs = attrStmts . graphStatements $ g'

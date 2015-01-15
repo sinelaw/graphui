@@ -8,15 +8,12 @@ import qualified AnnotatedGraph as AG
 import qualified Math.Vector2 as Vector2
 import qualified Graphics.DrawingCombinators as Draw
 
-import System.IO.Unsafe(unsafePerformIO) -- to hide the click collision detection
-
-
 
 renderAG :: AG.AnnotatedGraph a b Draw.R -> Draw.Image (Maybe AG.Ids)
 renderAG (AG.AG _ vrNodes vrEdges vrGraph) = Draw.scale s s Draw.%% drawAG
     where drawAG = mconcat (renderedNodes ++ renderedEdges) 
-          renderedNodes = renderElements vrNodes (renderNode vrGraph)
-          renderedEdges = renderElements vrEdges (renderEdge vrGraph)
+          renderedNodes = renderElements (AG.unVRNode vrNodes) (renderNode vrGraph)
+          renderedEdges = renderElements (AG.unVREdge vrEdges) (renderEdge vrGraph)
           renderElements elMap renderFunc = map (uncurry renderFunc) (IntMap.toList elMap)
           s = AG.zoomG vrGraph
 
@@ -88,11 +85,11 @@ coordsFromDOT w h v = Vector2.vector2 (2*(x / w) - 1) (2*(y / h) - 1)
 
 
 locateClick :: (Show c, Integral a, Integral b) => Draw.R -> Draw.R -> a -> b -> Draw.Image c -> c
-locateClick w h x y draw = unsafePerformIO $ getIds (fromIntegral x) (fromIntegral y) draw
+locateClick w h x y draw = getIds (fromIntegral x) (fromIntegral y) draw
     where getIds x' y' draw' =  do
             let pos = coordsFromSDL' w h x' y'
             Draw.sample draw' pos
 
 
 circle :: Draw.Image Any
-circle = Draw.regularPoly (64 :: Integer)
+circle = Draw.regularPoly (64 :: Int)

@@ -133,7 +133,7 @@ data AGEvent a b = AddNewNode a
                    deriving (Eq, Show)
 
 
-sdlToAGEvents :: Yampa.SF (SDL.Event, Draw.Image (Maybe AG.Ids)) (Yampa.Event (AGEvent String String))
+--sdlToAGEvents :: Yampa.SF (SDL.Event, Draw.Image (Maybe AG.Ids)) (Yampa.Event (AGEvent String String))
 sdlToAGEvents = proc (sdlEvent, draw) -> do
                   let anGraphEvent = case sdlEvent of
                                        SDL.KeyDown ks -> case (SDL.symKey ks) of
