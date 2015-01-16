@@ -1,10 +1,12 @@
 module GraphVizUtils where
 
-import Data.GraphViz
+import Data.GraphViz.Types.Generalised
+import Data.GraphViz(dirCommand,undirCommand,parseDotGraph,GraphvizOutput(..),GraphvizParams(..),nonClusteredParams,fmtNode,fmtEdge,isDirected,graphToDot,PrintDotRepr(..),graphEdges,graphNodes,attrStmts,graphvizWithHandle,Attributes,DotRepr(..))
 
 import qualified Data.Graph.Inductive as Graph
 import System.IO.Unsafe(unsafePerformIO) 
-import Data.Text.Lazy.IO(hGetContents)
+import Data.Text.Lazy(pack)
+import System.IO(hGetContents)
 import Control.Arrow((&&&))
 import Data.Maybe(fromJust)
 import qualified Data.Map as Map
@@ -52,17 +54,17 @@ graphToGraph'' gr isDir gAttributes fmtNode' fmtEdge'
 
 -- dotAttributesAlt :: (Graph.Graph gr) => Bool -> gr a b -> DotGraph Graph.Node
 --                  -> IO ([GlobalAttributes], gr (AttributeNode a) (AttributeEdge b))
-dotAttributesAlt :: (PrintDotRepr dg n, Graph.Graph gr1, Graph.Graph gr) =>
-                    Bool
-                    -> gr t b
-                    -> dg n
-                    -> IO ([GlobalAttributes], gr1 (Attributes, t) (Attributes, b))
+-- dotAttributesAlt :: (PrintDotRepr dg n, Graph.Graph gr1, Graph.Graph gr) =>
+--                     Bool
+--                     -> gr t b
+--                     -> dg n
+--                     -> IO ([GlobalAttributes], gr1 (Attributes, t) (Attributes, b))
 dotAttributesAlt isDir gr dot
     = do output <- graphvizWithHandle command
                                               dot
                                               DotOutput
                                               hGetContents
-         return $ rebuildGraphWithAttributes output
+         return $ rebuildGraphWithAttributes $ pack output
     where
       command = if isDir then dirCommand else undirCommand
       rebuildGraphWithAttributes dotResult =  (gAttrs, Graph.mkGraph lnodes ledges)
@@ -81,4 +83,22 @@ dotAttributesAlt isDir gr dot
             nodeMap = Map.fromList $ map (nodeID &&& nodeAttributes) ns
             edgeMap = Map.fromList $ map ( (fromNode &&& toNode)
                                            &&& edgeAttributes) es
+--             (gAttrs, _) = graphStructureInformation $ g'
             gAttrs = attrStmts . graphStatements $ g'
+--       rebuildGraphWithAttributes dotResult =  ([gAttrs], Graph.mkGraph lnodes ledges)
+--           where
+--             lnodes = map (\(n, l) -> (n, (nodeMap Map.! n, l)))
+--                      $ Graph.labNodes gr
+--             ledges = map createEdges $ Graph.labEdges gr
+--             createEdges (f, t, l) = if isDir || f <= t
+--                                     then (f, t, getLabel (f,t))
+--                                     else (f, t, getLabel (t,f))
+--                 where
+--                   getLabel c = (fromJust $ Map.lookup c edgeMap, l)
+--             g' = parseDotGraph dotResult
+--             nodeMap = Map.map snd $ nodeInformation True g'
+--             es = edgeInformation True g'
+-- --            nodeMap = Map.fromList $ map (nodeID &&& nodeAttributes) ns
+--             edgeMap = Map.fromList $ map ( (fromNode &&& toNode)
+--                                            &&& edgeAttributes) es
+--             (gAttrs, _) = graphStructureInformation $ g'

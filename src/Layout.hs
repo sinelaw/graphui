@@ -8,7 +8,7 @@ import qualified AnnotatedGraph as AG
 import qualified Math.Vector2 as Vector2
 
 import qualified Data.GraphViz.Attributes.Complete as GVAttrs
-import qualified Data.GraphViz.Types as GVTypes
+import qualified Data.GraphViz.Types.Generalised as GVTypes
 
 import qualified Data.IntMap as IntMap
 
