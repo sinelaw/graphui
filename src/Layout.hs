@@ -8,10 +8,10 @@ import qualified AnnotatedGraph as AG
 import qualified Math.Vector2 as Vector2
 
 import qualified Data.GraphViz.Attributes.Complete as GVAttrs
+import qualified Data.GraphViz.Types.Generalised as GVG
 import qualified Data.GraphViz.Types as GVTypes
 
 import qualified Data.IntMap as IntMap
-
 
 pointToVec :: (Fractional a) => GVAttrs.Point -> Vector2.Vector2 a
 pointToVec (GVAttrs.Point x y _ _) = Vector2.vector2 (realToFrac x) (realToFrac y)
@@ -27,10 +27,13 @@ addVRDNAttr attr vrdn = case attr of
   _ -> vrdn
 
 splineToVecs :: (Fractional a) => GVAttrs.Spline -> [Vector2.Vector2 a]
-splineToVecs (GVAttrs.Spline s e ps) = map pointToVec points
+splineToVecs spline = map pointToVec points
     where fixP (Just p) _ = p
           fixP Nothing p' = p'
           points = [fixP s (head ps)] ++ ps ++ [fixP e (last ps)]
+          s = GVAttrs.startPoint spline
+          e = GVAttrs.endPoint spline
+          ps = GVAttrs.splinePoints spline
           
 setPointsE :: (RealFloat a) => [Vector2.Vector2 a] -> AG.VRDEdge a -> AG.VRDEdge a
 setPointsE points vrde = vrde{AG.pointsE = points, 
@@ -76,7 +79,7 @@ autoLayout ag = AG.AG gr (AG.VRNode newVRN) (AG.VREdge newVRE) newVRG
 
         
 --        convToVRG :: [GVTypes.GlobalAttributes] -> AG.VRGraph   -> AG.VRGraph
-        convToVRG ((GVTypes.GraphAttrs gattrs):attrs) vrg = convToVRG attrs (foldr addVRGAttr vrg gattrs)
+        convToVRG ((GVG.GraphAttrs gattrs):attrs) vrg = convToVRG attrs (foldr addVRGAttr vrg gattrs)
         convToVRG (_:attrs) vrg = convToVRG attrs vrg
         convToVRG []        vrg = vrg
 

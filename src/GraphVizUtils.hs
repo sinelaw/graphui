@@ -1,7 +1,8 @@
 module GraphVizUtils where
 
+import Data.Foldable(foldr)
 import Data.GraphViz
-import Data.GraphViz.Types.Generalised(fromGeneralised)
+import qualified Data.GraphViz.Types.Generalised as GVG
 import qualified Data.Graph.Inductive as Graph
 import System.IO.Unsafe(unsafePerformIO) 
 import qualified Data.Text.Lazy as Text
@@ -11,13 +12,14 @@ import Control.Arrow((&&&))
 import Data.Maybe(fromJust)
 import qualified Data.Map as Map
 
+import Prelude hiding (foldr)
 
 -- Unsafe IO is safe here because we aren't touching the graphviz random seed 
 -- (unsetting it will cause random node assignment, which isn't pure)
 dotizedGraph'' :: (Graph.Graph gr) =>
                   gr t b
                   -> Bool
-                  -> ([GlobalAttributes], gr (Attributes, t) (Attributes, b))
+                  -> ([GVG.GlobalAttributes], gr (Attributes, t) (Attributes, b))
 dotizedGraph'' g isDir = unsafePerformIO
                          $ graphToGraph'' g isDir gAttrs noAttrs noAttrs
     where
@@ -27,7 +29,7 @@ dotizedGraph'' g isDir = unsafePerformIO
 
 
 mkParams :: Bool
-            -> [GlobalAttributes]
+            -> [GVG.GlobalAttributes]
             -> ((n, l) -> Attributes)
             -> ((n, n, el) -> Attributes)
             -> GraphvizParams n l el () l
@@ -44,7 +46,7 @@ graphToGraph'' :: (Graph.Graph gr) =>
                   -> [GlobalAttributes]
                   -> ((Graph.Node, t) -> Attributes)
                   -> ((Graph.Node, Graph.Node, b) -> Attributes)
-                  -> IO ([GlobalAttributes], gr (Attributes, t) (Attributes, b))
+                  -> IO ([GVG.GlobalAttributes], gr (Attributes, t) (Attributes, b))
 graphToGraph'' gr isDir gAttributes fmtNode' fmtEdge'
     = dotAttributesAlt isDir gr dot
     where
@@ -57,22 +59,18 @@ getContents' handle = do
   stuff <- hGetContents handle
   return $ Text.pack stuff
 
--- dotAttributesAlt :: (Graph.Graph gr) => Bool -> gr a b -> DotGraph Graph.Node
---                  -> IO ([GlobalAttributes], gr (AttributeNode a) (AttributeEdge b))
 dotAttributesAlt :: (Graph.Graph gr) =>
                     Bool
                     -> gr t b
                     -> DotGraph Graph.Node
-                    -> IO ([GlobalAttributes], gr (Attributes, t) (Attributes, b))
+                    -> IO ([GVG.GlobalAttributes], gr (Attributes, t) (Attributes, b))
 dotAttributesAlt isDir gr dot
-    = do output <- graphvizWithHandle command
-                                              dot
-                                              DotOutput
-                                              getContents'
-         return $ rebuildGraphWithAttributes output
+    = do output <- graphvizWithHandle command dot DotOutput getContents'
+         let parsedC = parseDotGraph output :: GVG.DotGraph Graph.Node
+         return $ rebuildGraphWithAttributes parsedC
     where
       command = if isDir then dirCommand else undirCommand
-      rebuildGraphWithAttributes dotResult =  (gAttrs, Graph.mkGraph lnodes ledges)
+      rebuildGraphWithAttributes g' =  (gAttrs, Graph.mkGraph lnodes ledges)
           where
             lnodes = map (\(n, l) -> (n, (nodeMap Map.! n, l)))
                      $ Graph.labNodes gr
@@ -82,10 +80,16 @@ dotAttributesAlt isDir gr dot
                                     else (f, t, getLabel (t,f))
                 where
                   getLabel c = (fromJust $ Map.lookup c edgeMap, l)
-            g' = fromGeneralised $ parseDotGraphLiberally dotResult
-            ns = graphNodes g'
-            es = graphEdges g'
             nodeMap = Map.fromList $ map (nodeID &&& nodeAttributes) ns
             edgeMap = Map.fromList $ map ( (fromNode &&& toNode)
                                            &&& edgeAttributes) es
-            gAttrs = attrStmts . graphStatements $ g'
+            gStmts = GVG.graphStatements g'
+
+            (gAttrs, ns, es) = foldr classifyGraphStatment ([],[],[]) gStmts
+            classifyGraphStatment s (gs',ns',es') =
+              case s of
+               GVG.GA attr -> (attr:gs', ns', es')
+               GVG.SG _ -> (gs',ns',es')
+               GVG.DN n -> (gs',n:ns',es')
+               GVG.DE e -> (gs',ns',e:es')
+                                                     
