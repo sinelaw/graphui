@@ -1,10 +1,12 @@
 module GraphVizUtils where
 
 import Data.GraphViz
-
+import Data.GraphViz.Types.Generalised(fromGeneralised)
 import qualified Data.Graph.Inductive as Graph
 import System.IO.Unsafe(unsafePerformIO) 
-import Data.Text.Lazy.IO(hGetContents)
+import qualified Data.Text.Lazy as Text
+import System.IO(Handle)
+import System.IO.Strict(hGetContents)
 import Control.Arrow((&&&))
 import Data.Maybe(fromJust)
 import qualified Data.Map as Map
@@ -50,18 +52,23 @@ graphToGraph'' gr isDir gAttributes fmtNode' fmtEdge'
       params = mkParams isDir gAttributes fmtNode' fmtEdge'
 
 
+getContents' :: Handle -> IO Text.Text
+getContents' handle = do
+  stuff <- hGetContents handle
+  return $ Text.pack stuff
+
 -- dotAttributesAlt :: (Graph.Graph gr) => Bool -> gr a b -> DotGraph Graph.Node
 --                  -> IO ([GlobalAttributes], gr (AttributeNode a) (AttributeEdge b))
-dotAttributesAlt :: (PrintDotRepr dg n, Graph.Graph gr1, Graph.Graph gr) =>
+dotAttributesAlt :: (Graph.Graph gr) =>
                     Bool
                     -> gr t b
-                    -> dg n
-                    -> IO ([GlobalAttributes], gr1 (Attributes, t) (Attributes, b))
+                    -> DotGraph Graph.Node
+                    -> IO ([GlobalAttributes], gr (Attributes, t) (Attributes, b))
 dotAttributesAlt isDir gr dot
     = do output <- graphvizWithHandle command
                                               dot
                                               DotOutput
-                                              hGetContents
+                                              getContents'
          return $ rebuildGraphWithAttributes output
     where
       command = if isDir then dirCommand else undirCommand
@@ -75,7 +82,7 @@ dotAttributesAlt isDir gr dot
                                     else (f, t, getLabel (t,f))
                 where
                   getLabel c = (fromJust $ Map.lookup c edgeMap, l)
-            g' = parseDotGraph dotResult
+            g' = fromGeneralised $ parseDotGraphLiberally dotResult
             ns = graphNodes g'
             es = graphEdges g'
             nodeMap = Map.fromList $ map (nodeID &&& nodeAttributes) ns
