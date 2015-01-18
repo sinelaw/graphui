@@ -45,7 +45,6 @@ getEvents :: IORef Yampa.Time -> IO (Yampa.DTime, Maybe SDL.Event)
 getEvents tpRef = do
   tp <- readIORef tpRef
   ev <- SDL.waitEvent
---  SDL.delay 1
   t <- SDL.getTicks
   writeIORef tpRef (fromIntegral t)
   let dt = max 1 (fromIntegral t - tp)
@@ -60,14 +59,20 @@ sense tpRef _ = do
 
 
 actuate :: (Show a, Eq a, Show b, Eq b, RealFloat c) => 
-           Bool 
+           IORef Yampa.Time
+           -> Bool 
            -> (Bool, 
                Draw.Image (Maybe AG.Ids), 
                Yampa.Event (AGEvent a b), 
                AG.AnnotatedGraph a b c) 
            -> IO Bool
-actuate mayHaveChanged (needQuit, draw, _, ag) = do
-  when mayHaveChanged redraw'
+actuate tpRef mayHaveChanged (needQuit, draw, _, ag) = do
+  tp <- readIORef tpRef
+  t <- SDL.getTicks
+  let dt = max 1 (fromIntegral t - tp)
+  when (dt > 10 && mayHaveChanged) $ do 
+     writeIORef tpRef (fromIntegral t)
+     redraw'
   return needQuit
   
     where
@@ -115,7 +120,8 @@ sscanPrim' f b_init = Yampa.sscanPrim f' b_init b_init
 main :: IO ()
 main = do
   tpRef <- newIORef 0
-  Yampa.reactimate initial (sense tpRef) actuate processor
+  tpRef2 <- newIORef 0
+  Yampa.reactimate initial (sense tpRef) (actuate tpRef2)  processor
   putStrLn "Quitting"
   SDL.quit
   return ()
